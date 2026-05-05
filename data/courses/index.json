@@ -9,7 +9,7 @@
       "kitayama-west",
       "nishiyama"
     ],
-    "totalDistanceKm": 89.98,
+    "totalDistanceKm": 89.97,
     "totalDistanceLabel": "約90km（公称84km、実走 GPS ベースで再集計後の合計）"
   },
   "extensions": {
@@ -60,11 +60,11 @@
       "dataPath": "./kitayama-west.json",
       "implemented": true,
       "summary": {
-        "totalDistanceKm": 21.03,
-        "totalAscentM": 1167,
-        "totalDescentM": 1270,
-        "standardTimeHr": 9.58,
-        "courseConstant": 36
+        "totalDistanceKm": 21.02,
+        "totalAscentM": 1124,
+        "totalDescentM": 1227,
+        "standardTimeHr": 9.53,
+        "courseConstant": 35.4
       }
     },
     {

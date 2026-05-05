@@ -60,20 +60,30 @@ function parseArgs(argv) {
 
 /**
  * Tiny streaming-friendly regex parser. ibuki.run GPX uses the standard
- * GPX 1.1 schema with <trkpt lat lon><ele>VALUE</ele></trkpt>.
+ * GPX 1.1 schema with <trkpt lat lon><ele>VALUE</ele></trkpt>, but other
+ * recorders may emit lon-before-lat or single-quote attributes — match the
+ * tag first, then extract each attribute independently so we accept any
+ * attribute order and either quote style.
  * Returns coords in [lon, lat, ele|null] order to match the rest of the pipeline.
  */
 function parseGpxTrkpts(gpxContent) {
   const out = [];
   // Regex over the full file is acceptable: even the 1.2MB fullloop file is
   // ~17k matches and parses in <1s. We don't need a SAX parser at this scale.
-  const re = /<trkpt[^>]*\blat="([\-\d.]+)"[^>]*\blon="([\-\d.]+)"[^>]*>([\s\S]*?)<\/trkpt>/g;
+  const tagRe = /<trkpt\b([^>]*)>([\s\S]*?)<\/trkpt>/g;
+  const latRe = /\blat=["']([\-\d.]+)["']/;
+  const lonRe = /\blon=["']([\-\d.]+)["']/;
+  const eleRe = /<ele>([\-\d.]+)<\/ele>/;
   let m;
-  while ((m = re.exec(gpxContent)) !== null) {
-    const lat = parseFloat(m[1]);
-    const lon = parseFloat(m[2]);
-    const inner = m[3];
-    const eleMatch = inner.match(/<ele>([\-\d.]+)<\/ele>/);
+  while ((m = tagRe.exec(gpxContent)) !== null) {
+    const attrs = m[1];
+    const inner = m[2];
+    const latMatch = attrs.match(latRe);
+    const lonMatch = attrs.match(lonRe);
+    if (!latMatch || !lonMatch) continue;
+    const lat = parseFloat(latMatch[1]);
+    const lon = parseFloat(lonMatch[1]);
+    const eleMatch = inner.match(eleRe);
     const ele = eleMatch ? parseFloat(eleMatch[1]) : null;
     if (Number.isFinite(lat) && Number.isFinite(lon)) {
       out.push([lon, lat, ele]);
@@ -506,12 +516,15 @@ async function fillKitayamaWestGap(opts) {
   // Fetch elevation only for the new pts (existing OSM pts already have it).
   await fetchAndInterpolateElevations(sliceThin, opts);
 
-  // Splice. Drop the very first/last splice points if they coincide with the
-  // existing endpoints to avoid a zero-length micro-segment.
-  const head = oldCoords.slice(0, gapIdxBefore + 1);
-  const tail = oldCoords.slice(gapIdxAfter);
+  // Splice. The OSM endpoints (oldCoords[gapIdxBefore], oldCoords[gapIdxAfter])
+  // sit only 6m / 1m from the corresponding ibuki splice endpoints — keeping
+  // both sides would create a near-zero-length micro-segment at each seam.
+  // Drop the OSM gap-boundary points and let sliceThin's endpoints carry the
+  // join, so the merged polyline has no duplicate-position artifacts.
+  const head = oldCoords.slice(0, gapIdxBefore);
+  const tail = oldCoords.slice(gapIdxAfter + 1);
   const merged = head.concat(sliceThin, tail);
-  console.log(`  merged: ${head.length} + ${sliceThin.length} + ${tail.length} = ${merged.length} pts`);
+  console.log(`  merged: ${head.length} (head) + ${sliceThin.length} (ibuki) + ${tail.length} (tail) = ${merged.length} pts (OSM seam pts dropped)`);
 
   // Recompute distances + summary using the same formulas as build_courses.js.
   const distancesKm = computeCumulativeDistances(merged);

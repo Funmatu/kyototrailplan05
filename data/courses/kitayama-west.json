@@ -4,12 +4,12 @@
   "name": "北山西部コース",
   "subtitle": "二ノ瀬〜高雄〜清滝",
   "summary": {
-    "totalDistanceKm": 21.03,
-    "totalAscentM": 1167,
-    "totalDescentM": 1270,
-    "standardTimeHr": 9.58,
-    "standardTimeLabel": "9時間35分",
-    "courseConstant": 36,
+    "totalDistanceKm": 21.02,
+    "totalAscentM": 1124,
+    "totalDescentM": 1227,
+    "standardTimeHr": 9.53,
+    "standardTimeLabel": "9時間32分",
+    "courseConstant": 35.4,
     "highestM": 450,
     "lowestM": 73,
     "userBaseWeightKg": 60,
@@ -8449,11 +8449,6 @@
         225
       ],
       [
-        135.71117,
-        35.07059,
-        204
-      ],
-      [
         135.7111,
         35.07059,
         420
@@ -12924,11 +12919,6 @@
         117
       ],
       [
-        135.67293,
-        35.05412,
-        182
-      ],
-      [
         135.67289,
         35.05413,
         160
@@ -14445,7 +14435,7 @@
       "id": "cp-8",
       "types": [],
       "name": "高雄橋",
-      "distanceKm": 17.54,
+      "distanceKm": 17.53,
       "elevationM": 160,
       "lat": 35.0541,
       "lng": 135.6729,
@@ -14459,7 +14449,7 @@
         "GOAL"
       ],
       "name": "清滝金鈴橋/渡猿橋",
-      "distanceKm": 21.03,
+      "distanceKm": 21.02,
       "elevationM": 73,
       "lat": 35.0383,
       "lng": 135.6581,
@@ -14485,13 +14475,13 @@
       "lat": 35.0683,
       "lng": 135.7093,
       "elevationM": 436,
-      "distanceKm": 10.71
+      "distanceKm": 10.7
     },
     {
       "lat": 35.0506,
       "lng": 135.6996,
       "elevationM": 413,
-      "distanceKm": 14.04
+      "distanceKm": 14.03
     }
   ],
   "itinerary": [
@@ -14572,8 +14562,8 @@
       "place": "高雄橋",
       "isMajor": false,
       "elevationM": 160,
-      "segmentKm": 8.69,
-      "cumulativeKm": 17.54,
+      "segmentKm": 8.68,
+      "cumulativeKm": 17.53,
       "action": "通過"
     },
     {
@@ -14582,7 +14572,7 @@
       "isMajor": true,
       "elevationM": 73,
       "segmentKm": 3.49,
-      "cumulativeKm": 21.03,
+      "cumulativeKm": 21.02,
       "action": "到着"
     }
   ],
@@ -14926,7 +14916,7 @@
     "source": "OpenStreetMap (ODbL)",
     "generator": "tools/build_courses.js",
     "osmRange": "46-94 (一部 marker 70-90 が OSM 未マップ)",
-    "coverageNote": "OSM の marker 46-69, 91-94 セグメント + ibuki.run CC0 GPX で marker 70-90 (約 3.9km) を補完。実走 GPS ベースで合計 21.03km をフルカバー (公称 19.5km との差は ibuki ユーザーの実踏査ルートが公称より起伏のある経路を通過したことに起因)。",
+    "coverageNote": "OSM の marker 46-69, 91-94 セグメント + ibuki.run CC0 GPX で marker 70-90 (約 3.9km) を補完。実走 GPS ベースで合計 21.02km をフルカバー (公称 19.5km との差は ibuki ユーザーの実踏査ルートが公称より起伏のある経路を通過したことに起因)。",
     "sourceRelations": [
       14905010,
       15069559,
