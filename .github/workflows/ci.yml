@@ -125,12 +125,20 @@ jobs:
             echo "$OUT" | grep -q "$needle" && echo "OK landing has: $needle" || { echo "FAIL landing missing: $needle"; exit 1; }
           done
 
-          # Course view
+          # Course view (西山 - synthetic data with full content)
           OUT=$(google-chrome --headless=new --disable-gpu --no-sandbox \
             --virtual-time-budget=6000 --dump-dom \
             'http://localhost:8080/index.html#course=nishiyama')
           for needle in 'コースサマリー' '行動計画タイムテーブル' '苔寺・鈴虫寺バス停' '075-751-4141' 'C = 1.8'; do
-            echo "$OUT" | grep -q "$needle" && echo "OK course has: $needle" || { echo "FAIL course missing: $needle"; exit 1; }
+            echo "$OUT" | grep -q "$needle" && echo "OK nishiyama has: $needle" || { echo "FAIL nishiyama missing: $needle"; exit 1; }
+          done
+
+          # Course view (東山 - OSM-derived data, verifies data-driven rendering still works)
+          OUT=$(google-chrome --headless=new --disable-gpu --no-sandbox \
+            --virtual-time-budget=8000 --dump-dom \
+            'http://localhost:8080/index.html#course=higashiyama')
+          for needle in 'コースサマリー' '東山コース' '京阪伏見桃山駅' '075-751-4141'; do
+            echo "$OUT" | grep -q "$needle" && echo "OK higashiyama has: $needle" || { echo "FAIL higashiyama missing: $needle"; exit 1; }
           done
 
           kill $SP 2>/dev/null || true
