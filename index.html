@@ -3,11 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-<title>京都一周トレイル 西山コース</title>
+<title>京都一周トレイル</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+<script src="./js/progressStore.js"></script>
 <style>
 :root {
   --clr-primary: #2E7D32;
@@ -21,13 +22,133 @@
   --clr-blue: #1565C0;
   --tab-h: 42px;
   --info-h: 54px;
+  --hdr-h: 38px;
   --font: 'Helvetica Neue', Arial, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body, html { height: 100%; width: 100vw; overflow: hidden; background: #000; font-family: var(--font); }
 
+/* ===== Landing ===== */
+#landing {
+  position: absolute; inset: 0; z-index: 100; background: var(--clr-bg);
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 20px 16px 40px;
+}
+#landing.hidden { display: none; }
+.landing-title {
+  font-size: 22px; font-weight: 800; color: var(--clr-primary); margin-bottom: 4px;
+}
+.landing-sub {
+  font-size: 12px; color: var(--clr-text-sub); margin-bottom: 16px;
+}
+.loop-progress-card {
+  background: var(--clr-card); border: 1px solid var(--clr-border); border-radius: 10px;
+  padding: 12px 14px; margin-bottom: 18px;
+}
+.loop-progress-card h2 {
+  font-size: 13px; color: var(--clr-text); font-weight: 700; margin-bottom: 8px;
+}
+.progress-bar {
+  width: 100%; height: 8px; background: #e8e6e0; border-radius: 4px; overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%; background: var(--clr-primary); transition: width .4s;
+}
+.loop-progress-meta {
+  display: flex; justify-content: space-between; font-size: 11px;
+  color: var(--clr-text-sub); margin-top: 6px;
+}
+.section-label {
+  font-size: 11px; color: var(--clr-text-sub); text-transform: uppercase;
+  letter-spacing: 0.5px; margin: 18px 4px 8px;
+}
+.course-card {
+  background: var(--clr-card); border: 1px solid var(--clr-border); border-radius: 10px;
+  padding: 12px 14px; margin-bottom: 10px;
+  display: flex; flex-direction: column; gap: 8px;
+  cursor: pointer; transition: border-color .15s, transform .1s;
+}
+.course-card:active { transform: scale(0.99); }
+.course-card.implemented { border-left: 4px solid var(--clr-primary); }
+.course-card.coming-soon { opacity: 0.55; cursor: not-allowed; border-left: 4px dashed var(--clr-text-sub); }
+.course-card.extension { border-left: 4px solid var(--clr-accent); }
+.course-card-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+}
+.course-card-name { font-size: 15px; font-weight: 700; color: var(--clr-text); }
+.course-card-order {
+  font-size: 10px; color: var(--clr-text-sub); padding: 2px 6px;
+  background: rgba(0,0,0,0.04); border-radius: 4px;
+}
+.course-card-sub { font-size: 11px; color: var(--clr-text-sub); }
+.course-card-stats {
+  display: flex; gap: 14px; flex-wrap: wrap; font-size: 11px; color: var(--clr-text);
+}
+.course-card-stats .stat-key { color: var(--clr-text-sub); margin-right: 3px; }
+.course-card-stats .stat-val { font-weight: 700; }
+.course-card-progress {
+  display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--clr-text-sub);
+}
+.course-card-progress .progress-bar { flex: 1; height: 5px; }
+.coming-soon-badge {
+  font-size: 9px; font-weight: 700; color: var(--clr-text-sub);
+  background: rgba(0,0,0,0.06); padding: 2px 6px; border-radius: 8px;
+  letter-spacing: 0.3px;
+}
+.extension-badge {
+  font-size: 9px; font-weight: 700; color: #fff;
+  background: var(--clr-accent); padding: 2px 6px; border-radius: 8px;
+  letter-spacing: 0.3px;
+}
+.completed-badge {
+  font-size: 9px; font-weight: 700; color: #fff;
+  background: var(--clr-primary); padding: 2px 6px; border-radius: 8px;
+  letter-spacing: 0.3px;
+}
+.all-completed-banner {
+  margin-top: 6px; padding: 6px 10px; background: #FFF8E1; border: 1px solid #F9A825;
+  border-radius: 6px; color: #E65100; font-size: 12px; font-weight: 700;
+}
+
+/* Data controls (Export / Import / Reset) */
+.data-controls {
+  margin-top: 22px; padding: 12px 14px; background: var(--clr-card);
+  border: 1px solid var(--clr-border); border-radius: 10px;
+}
+.data-controls h2 {
+  font-size: 13px; color: var(--clr-text); font-weight: 700; margin-bottom: 8px;
+}
+.data-controls-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.data-btn {
+  padding: 6px 12px; font-size: 11.5px; font-family: var(--font);
+  background: none; border: 1px solid var(--clr-primary); color: var(--clr-primary);
+  border-radius: 6px; cursor: pointer; font-weight: 600;
+}
+.data-btn.danger { border-color: var(--clr-danger); color: var(--clr-danger); }
+.data-controls-note {
+  margin-top: 6px; font-size: 10px; color: var(--clr-text-sub); line-height: 1.5;
+}
+
+/* ===== Course view (hidden until course chosen) ===== */
+#course-view.hidden { display: none; }
+
+/* ===== Course header ===== */
+#course-header {
+  position: absolute; top: 0; left: 0; right: 0; height: var(--hdr-h);
+  display: flex; align-items: center; padding: 0 8px; z-index: 50;
+  background: rgba(255,255,255,0.92); border-bottom: 1px solid var(--clr-border);
+  backdrop-filter: blur(6px);
+}
+#course-header button {
+  background: none; border: none; font-family: var(--font); cursor: pointer;
+  font-size: 16px; color: var(--clr-primary); padding: 4px 10px;
+}
+#course-header .hdr-title {
+  flex: 1; text-align: center; font-size: 13px; font-weight: 700; color: var(--clr-text);
+}
+
 /* ===== Map ===== */
-#map { position: absolute; top: 0; left: 0; height: 55%; width: 100%; z-index: 1; }
+#map { position: absolute; top: var(--hdr-h); left: 0; height: calc(55% - var(--hdr-h)); width: 100%; z-index: 1; }
 
 /* ===== Bottom Panel ===== */
 #panel {
@@ -118,7 +239,7 @@ body, html { height: 100%; width: 100vw; overflow: hidden; background: #000; fon
 .cp-badge.danger { background: var(--clr-danger); }
 .cp-badge.rest { background: #6A1B9A; }
 .cp-badge.view { background: #00838F; }
-.cp-badge.start { background: var(--clr-primary); }
+.cp-badge.start, .cp-badge.goal { background: var(--clr-primary); }
 .cp-meta { font-size: 10px; color: var(--clr-text-sub); margin: 3px 0 5px; }
 .cp-detail { font-size: 11.5px; color: var(--clr-text); line-height: 1.6; }
 .cp-tip {
@@ -158,611 +279,964 @@ body, html { height: 100%; width: 100vw; overflow: hidden; background: #000; fon
 </head>
 <body>
 
-<div id="map"></div>
+<!-- ==================== Landing ==================== -->
+<div id="landing">
+  <div class="landing-title">京都一周トレイル</div>
+  <div class="landing-sub">伏見桃山〜比叡山〜大原〜鞍馬〜高雄〜嵐山〜苔寺 / 全長 約84km（4コース連続ループ）+ 京北コース</div>
 
-<div id="panel">
-  <!-- Live Data Bar -->
-  <div id="info-bar">
-    <div class="info-item"><div class="info-value" id="val-dist">0.00</div><div class="info-label">距離 km</div></div>
-    <div class="info-item"><div class="info-value" id="val-ascent">0</div><div class="info-label">標高↑ m</div></div>
-    <div class="info-item"><div class="info-value" id="val-cal">0</div><div class="info-label">kcal</div></div>
-    <div class="info-item"><div class="info-value" id="val-time">00:00</div><div class="info-label">経過</div></div>
-    <div class="info-item"><div class="info-value" id="val-pace">--</div><div class="info-label">ペース</div></div>
+  <div class="loop-progress-card">
+    <h2>本線進捗</h2>
+    <div class="progress-bar"><div class="progress-bar-fill" id="loop-bar" style="width:0%"></div></div>
+    <div class="loop-progress-meta">
+      <span id="loop-progress-text">0.00 km / 84 km</span>
+      <span id="loop-progress-pct">0%</span>
+    </div>
   </div>
 
-  <!-- Tab Bar -->
-  <div id="tab-bar">
-    <button class="tab-btn active" data-tab="tab-elevation">標高</button>
-    <button class="tab-btn" data-tab="tab-itinerary">工程表</button>
-    <button class="tab-btn" data-tab="tab-checkpoints">CP詳細</button>
-    <button class="tab-btn" data-tab="tab-gear">装備</button>
-    <button class="tab-btn" data-tab="tab-info">補足情報</button>
-    <button class="tab-btn" data-tab="tab-emergency">緊急</button>
+  <div class="section-label">本線（4コース）</div>
+  <div id="loop-courses"></div>
+
+  <div class="section-label">拡張コース</div>
+  <div id="extension-courses"></div>
+
+  <div class="data-controls">
+    <h2>体重・装備</h2>
+    <div class="data-controls-row" style="align-items:center;">
+      <label style="font-size:11.5px;color:var(--clr-text);">体重 <input type="number" id="user-weight" min="20" max="200" step="0.5" style="width:60px;font-family:var(--font);font-size:12px;padding:3px 4px;"> kg</label>
+      <label style="font-size:11.5px;color:var(--clr-text);">装備 <input type="number" id="user-gear" min="0" max="50" step="0.1" style="width:55px;font-family:var(--font);font-size:12px;padding:3px 4px;"> kg</label>
+    </div>
+    <div class="data-controls-note">
+      消費カロリー計算に使用。空欄の場合は各コース既定値（西山: 体重60kg / 装備5kg）を使用します。
+    </div>
   </div>
 
-  <!-- Tab Pages -->
-  <div id="tab-content">
+  <div class="data-controls">
+    <h2>電源モード・補間</h2>
+    <div class="data-controls-row" style="align-items:center;">
+      <label style="font-size:11.5px;color:var(--clr-text);">モード
+        <select id="user-power-mode" style="font-family:var(--font);font-size:12px;padding:3px 4px;">
+          <option value="eco">🔋 省電力（画面オフOK・経路追従補間）</option>
+          <option value="always-on">🔆 常時記録（Wake Lock維持）</option>
+        </select>
+      </label>
+    </div>
+    <div class="data-controls-row" style="align-items:center;margin-top:6px;">
+      <label style="font-size:11.5px;color:var(--clr-text);">許容誤差
+        <select id="user-tolerance" style="font-family:var(--font);font-size:12px;padding:3px 4px;">
+          <option value="50">50 m</option>
+          <option value="100">100 m</option>
+          <option value="150">150 m</option>
+        </select>
+      </label>
+    </div>
+    <div class="data-controls-note">
+      省電力モード: 画面オフ中も歩いていれば再開時に <b>経路追従補間</b> で進捗を補完します（ルート上 ≤ 許容誤差・速度 ≤ 8km/h・ギャップ ≤ 4h で自動採用）。常時記録モード: 既存挙動（Wake Lockで画面点灯維持・電池消費大）。
+    </div>
+  </div>
 
-    <!-- ==================== 標高プロファイル ==================== -->
-    <div class="tab-page active" id="tab-elevation">
-      <div id="chart-container"><canvas id="elevation-chart"></canvas></div>
-      <div style="padding:0 4px;">
-        <div class="sec-title">コースサマリー</div>
-        <table class="data-table">
-          <tr><td>総距離</td><td class="num em">15.0 km</td><td>累積標高(上り)</td><td class="num em">827 m</td></tr>
-          <tr><td>標準コースタイム</td><td class="num em">6時間48分</td><td>累積標高(下り)</td><td class="num em">832 m</td></tr>
-          <tr><td>最高地点</td><td class="num">約 410 m</td><td>最低地点</td><td class="num">約 38 m</td></tr>
-          <tr><td>体重(装備込)</td><td class="num">65.0 kg</td><td>目標コース定数</td><td class="num">25.5</td></tr>
-        </table>
-      </div>
+  <div class="data-controls">
+    <h2>歩行記録</h2>
+    <div class="data-controls-row">
+      <button class="data-btn" id="btn-export">エクスポート</button>
+      <button class="data-btn" id="btn-import">インポート</button>
+      <input type="file" id="import-file" accept="application/json" hidden>
+      <button class="data-btn danger" id="btn-reset">全リセット</button>
+    </div>
+    <div class="data-controls-note">
+      進捗は端末内（localStorage）に保存されます。端末乗換やバックアップ用にエクスポート可能。
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Course view ==================== -->
+<div id="course-view" class="hidden">
+
+  <!-- Header -->
+  <div id="course-header">
+    <button id="back-to-landing" aria-label="戻る">←</button>
+    <div class="hdr-title" id="hdr-course-name">—</div>
+    <button id="course-switch" aria-label="切替">⇅</button>
+  </div>
+
+  <!-- Map -->
+  <div id="map"></div>
+
+  <!-- Bottom Panel -->
+  <div id="panel">
+
+    <!-- Live Data Bar -->
+    <div id="info-bar">
+      <div class="info-item"><div class="info-value" id="val-dist">0.00</div><div class="info-label">距離 km</div></div>
+      <div class="info-item"><div class="info-value" id="val-ascent">0</div><div class="info-label">標高↑ m</div></div>
+      <div class="info-item"><div class="info-value" id="val-cal">0</div><div class="info-label">kcal</div></div>
+      <div class="info-item"><div class="info-value" id="val-time">00:00</div><div class="info-label">経過</div></div>
+      <div class="info-item"><div class="info-value" id="val-pace">--</div><div class="info-label">ペース</div></div>
     </div>
 
-    <!-- ==================== 工程表 ==================== -->
-    <div class="tab-page" id="tab-itinerary">
-      <div class="sec-title">行動計画タイムテーブル</div>
-      <table class="data-table">
-        <thead>
-          <tr><th>時刻</th><th>地点</th><th>標高</th><th>区間</th><th>累計</th><th>行動</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>07:00</td><td class="em">苔寺・鈴虫寺バス停</td><td class="num">55m</td><td class="num">—</td><td class="num">0.0km</td><td>出発・準備体操</td></tr>
-          <tr><td>07:15</td><td>西山トレイル起点標識</td><td class="num">62m</td><td class="num">0.3km</td><td class="num">0.3km</td><td>通過</td></tr>
-          <tr><td>07:50</td><td class="em">松尾山 山頂</td><td class="num">330m</td><td class="num">2.3km</td><td class="num">2.6km</td><td>小休憩 5分</td></tr>
-          <tr><td>08:20</td><td>嵐山展望地点</td><td class="num">185m</td><td class="num">1.5km</td><td class="num">4.1km</td><td>展望・写真撮影</td></tr>
-          <tr><td>08:50</td><td>渡月橋・嵐山市街</td><td class="num">38m</td><td class="num">2.0km</td><td class="num">6.1km</td><td>補給可(自販機・コンビニ)</td></tr>
-          <tr><td>09:05</td><td>清滝トンネル手前</td><td class="num">48m</td><td class="num">0.7km</td><td class="num">6.8km</td><td>通過</td></tr>
-          <tr><td>09:40</td><td class="em">清滝集落</td><td class="num">105m</td><td class="num">1.2km</td><td class="num">8.0km</td><td>休憩 10分・トイレ</td></tr>
-          <tr><td>10:20</td><td>月輪寺分岐</td><td class="num">270m</td><td class="num">1.5km</td><td class="num">9.5km</td><td>通過</td></tr>
-          <tr><td>10:50</td><td class="em">西山峠 (嵐山最高点付近)</td><td class="num">390m</td><td class="num">1.3km</td><td class="num">10.8km</td><td>昼食休憩 20分</td></tr>
-          <tr><td>11:40</td><td>高雄方面分岐</td><td class="num">285m</td><td class="num">1.0km</td><td class="num">11.8km</td><td>通過</td></tr>
-          <tr><td>12:10</td><td class="em">小塩山展望</td><td class="num">310m</td><td class="num">1.2km</td><td class="num">13.0km</td><td>展望・小休憩 5分</td></tr>
-          <tr><td>12:50</td><td>下山路分岐</td><td class="num">140m</td><td class="num">1.2km</td><td class="num">14.2km</td><td>通過</td></tr>
-          <tr><td>13:20</td><td class="em">上桂駅・ゴール</td><td class="num">45m</td><td class="num">0.8km</td><td class="num">15.0km</td><td>到着</td></tr>
-        </tbody>
-      </table>
-
-      <div class="sec-title">区間別難易度・所要時間</div>
-      <table class="data-table">
-        <thead><tr><th>区間</th><th>距離</th><th>標高差</th><th>所要</th><th>難度</th><th>路面</th></tr></thead>
-        <tbody>
-          <tr><td>起点→松尾山</td><td class="num">2.6km</td><td class="num">+275m</td><td class="num">50分</td><td>★★★</td><td>急登・土の山道</td></tr>
-          <tr><td>松尾山→嵐山展望</td><td class="num">1.5km</td><td class="num">-145m</td><td class="num">30分</td><td>★★</td><td>落ち葉多い尾根道</td></tr>
-          <tr><td>嵐山展望→渡月橋</td><td class="num">2.0km</td><td class="num">-147m</td><td class="num">30分</td><td>★</td><td>舗装路・階段</td></tr>
-          <tr><td>渡月橋→清滝集落</td><td class="num">1.9km</td><td class="num">+67m</td><td class="num">35分</td><td>★★</td><td>車道横歩道・未舗装路</td></tr>
-          <tr><td>清滝→西山峠</td><td class="num">2.8km</td><td class="num">+285m</td><td class="num">70分</td><td>★★★★</td><td>急登・岩場あり</td></tr>
-          <tr><td>西山峠→小塩山展望</td><td class="num">2.2km</td><td class="num">-80m</td><td class="num">50分</td><td>★★★</td><td>稜線・やせ尾根注意</td></tr>
-          <tr><td>小塩山展望→ゴール</td><td class="num">2.0km</td><td class="num">-265m</td><td class="num">40分</td><td>★★</td><td>九十九折・舗装路</td></tr>
-        </tbody>
-      </table>
-
-      <div class="sec-title">ペース管理の目安</div>
-      <div class="card">
-        <p>標準コースタイム <b>6時間48分</b>（休憩含まず）。休憩込みの総行動時間は <b>約7時間30分〜8時間</b> を想定。</p>
-        <ul>
-          <li>前半（起点→清滝）: 距離 8.0km / 目安 2時間40分</li>
-          <li>後半（清滝→ゴール）: 距離 7.0km / 目安 3時間20分（標高差大）</li>
-          <li>13:00以降も行程が残る場合はペースを見直すこと</li>
-          <li>日没時刻を確認し、遅くとも日没1時間前にはゴールすること</li>
-        </ul>
-      </div>
-
-      <div class="sec-title">エスケープルート</div>
-      <div class="card">
-        <ul>
-          <li><b>嵐山市街（6.1km地点）:</b> 阪急嵐山駅・JR嵯峨嵐山駅へ徒歩10分。最も安全な離脱地点。</li>
-          <li><b>清滝集落（8.0km地点）:</b> 清滝バス停→京都バス62系統で四条河原町方面へ。最終便注意（16:30頃）。</li>
-          <li><b>高雄方面分岐（11.8km地点）:</b> 高雄バス停へ約30分。JRバスで京都駅方面。</li>
-        </ul>
-      </div>
+    <!-- Tab Bar -->
+    <div id="tab-bar">
+      <button class="tab-btn active" data-tab="tab-elevation">標高</button>
+      <button class="tab-btn" data-tab="tab-itinerary">工程表</button>
+      <button class="tab-btn" data-tab="tab-checkpoints">CP詳細</button>
+      <button class="tab-btn" data-tab="tab-gear">装備</button>
+      <button class="tab-btn" data-tab="tab-info">補足情報</button>
+      <button class="tab-btn" data-tab="tab-emergency">緊急</button>
     </div>
 
-    <!-- ==================== チェックポイント詳細 ==================== -->
-    <div class="tab-page" id="tab-checkpoints">
-      <div class="sec-title">チェックポイント一覧</div>
-
-      <div class="card cp-card" id="cp-0">
-        <div class="cp-header">
-          <div><span class="cp-badge start">START</span><span class="card-title">苔寺・鈴虫寺バス停</span></div>
-          <span style="font-size:10px;color:var(--clr-text-sub)">0.0km</span>
-        </div>
-        <div class="cp-meta">標高 55m ／ 座標 34.9940, 135.6835</div>
-        <div class="cp-detail">
-          京都バス63・73系統「苔寺・鈴虫寺」下車。バス停横にトイレあり（和式）。
-          登山届ポストは設置なし。近隣に自販機2台あり。
-          バス停から西山トレイル起点標識まで徒歩約10分。住宅街を抜けるため標識に注意。
-        </div>
-        <div class="cp-tip">朝一番のバスは京都駅から6:20発。乗り遅れに注意。ICカード利用可。</div>
-        <button class="cp-nav-btn" onclick="flyToCP(34.9940,135.6835)">地図で表示</button>
-      </div>
-
-      <div class="card cp-card" id="cp-1">
-        <div class="cp-header">
-          <div><span class="cp-badge peak">PEAK</span><span class="card-title">松尾山 (331.5m)</span></div>
-          <span style="font-size:10px;color:var(--clr-text-sub)">2.6km</span>
-        </div>
-        <div class="cp-meta">標高 330m ／ 座標 34.9890, 135.6742 ／ 所要 起点から約50分</div>
-        <div class="cp-detail">
-          西山コース最初の主要ピーク。山頂は木立に囲まれ展望は限定的だが、東側に京都市街の眺望あり。
-          三角点標石あり。ベンチ1基。山頂手前200mは急登（傾斜25〜30度）。
-        </div>
-        <div class="cp-tip">序盤の急登でオーバーペースになりやすい。心拍数を抑え、ゆっくりウォームアップすること。</div>
-        <button class="cp-nav-btn" onclick="flyToCP(34.9890,135.6742)">地図で表示</button>
-      </div>
-
-      <div class="card cp-card" id="cp-2">
-        <div class="cp-header">
-          <div><span class="cp-badge view">VIEW</span><span class="card-title">嵐山展望地点</span></div>
-          <span style="font-size:10px;color:var(--clr-text-sub)">4.1km</span>
-        </div>
-        <div class="cp-meta">標高 185m ／ 座標 35.0042, 135.6600 ／ 所要 松尾山から約30分</div>
-        <div class="cp-detail">
-          保津川（大堰川）と嵯峨野の街並みを一望できる絶景ポイント。
-          秋季（11月中旬〜12月上旬）は紅葉の見頃。写真撮影に最適。
-          足場はやや狭いため、崖側に寄りすぎないこと。
-        </div>
-        <button class="cp-nav-btn" onclick="flyToCP(35.0042,135.6600)">地図で表示</button>
-      </div>
-
-      <div class="card cp-card" id="cp-3">
-        <div class="cp-header">
-          <div><span class="cp-badge water">WATER</span><span class="cp-badge rest">REST</span><span class="card-title">渡月橋・嵐山市街</span></div>
-          <span style="font-size:10px;color:var(--clr-text-sub)">6.1km</span>
-        </div>
-        <div class="cp-meta">標高 38m ／ 座標 35.0002, 135.6628 ／ 所要 嵐山展望から約30分</div>
-        <div class="cp-detail">
-          コース中最大の補給ポイント。コンビニ（ファミリーマート・セブンイレブン）複数あり。
-          公衆トイレ（中之島公園内、水洗）。自販機多数。
-          ここで水分・行動食を十分に補給すること（以降ゴールまで補給地なし）。
-        </div>
-        <div class="cp-tip">土日祝日・観光シーズンは人混み激しい。トレランシューズでの市街歩行はスリップ注意。</div>
-        <button class="cp-nav-btn" onclick="flyToCP(35.0002,135.6628)">地図で表示</button>
-      </div>
-
-      <div class="card cp-card" id="cp-4">
-        <div class="cp-header">
-          <div><span class="cp-badge water">WATER</span><span class="card-title">清滝集落</span></div>
-          <span style="font-size:10px;color:var(--clr-text-sub)">8.0km</span>
-        </div>
-        <div class="cp-meta">標高 105m ／ 座標 35.0055, 135.6588 ／ 所要 渡月橋から約35分</div>
-        <div class="cp-detail">
-          清滝川沿いの静かな集落。公衆トイレあり（清滝バス停横）。自販機1台。
-          エスケープルート: 清滝バス停から京都バス62系統。
-          愛宕山登山口でもあり、ここから先は本格的な山道が続く。
-        </div>
-        <div class="cp-tip">後半の核心部（清滝→西山峠）に備え、ここでしっかり休憩を取ること。水は最低500ml確保。</div>
-        <button class="cp-nav-btn" onclick="flyToCP(35.0055,135.6588)">地図で表示</button>
-      </div>
-
-      <div class="card cp-card" id="cp-5">
-        <div class="cp-header">
-          <div><span class="cp-badge danger">DANGER</span><span class="cp-badge peak">PEAK</span><span class="card-title">西山峠 (コース最高点付近)</span></div>
-          <span style="font-size:10px;color:var(--clr-text-sub)">10.8km</span>
-        </div>
-        <div class="cp-meta">標高 390〜410m ／ 座標 35.0290, 135.6558 ／ 所要 清滝から約70分</div>
-        <div class="cp-detail">
-          コース最大の難所。清滝からの標高差約300mを一気に登る。
-          一部岩場・鎖場あり。道幅が狭くすれ違い困難な箇所あり。
-          山頂付近は風が強いことがあるため防風対策を。展望は良好で京都市街〜比叡山まで見渡せる。
-        </div>
-        <div class="cp-tip">雨天時・雨後は岩が非常に滑りやすい。ストック推奨。無理せずエスケープルートも検討すること。</div>
-        <button class="cp-nav-btn" onclick="flyToCP(35.0290,135.6558)">地図で表示</button>
-      </div>
-
-      <div class="card cp-card" id="cp-6">
-        <div class="cp-header">
-          <div><span class="cp-badge view">VIEW</span><span class="cp-badge peak">PEAK</span><span class="card-title">小塩山展望</span></div>
-          <span style="font-size:10px;color:var(--clr-text-sub)">13.0km</span>
-        </div>
-        <div class="cp-meta">標高 310m ／ 座標 35.0455, 135.6540 ／ 所要 西山峠から約50分</div>
-        <div class="cp-detail">
-          稜線上の展望ポイント。西山の山並みと亀岡盆地の眺望。
-          やせ尾根区間があるため足元注意。ベンチ等はなし。
-          ここから先は基本的に下り一辺倒。膝への負担に注意。
-        </div>
-        <button class="cp-nav-btn" onclick="flyToCP(35.0455,135.6540)">地図で表示</button>
-      </div>
-
-      <div class="card cp-card" id="cp-7">
-        <div class="cp-header">
-          <div><span class="cp-badge start">GOAL</span><span class="card-title">上桂駅</span></div>
-          <span style="font-size:10px;color:var(--clr-text-sub)">15.0km</span>
-        </div>
-        <div class="cp-meta">標高 45m ／ 座標 35.0580, 135.6530 ／ 所要 小塩山展望から約40分</div>
-        <div class="cp-detail">
-          阪急嵐山線「上桂」駅。京都市街方面へのアクセス良好。
-          駅前にコンビニ・飲食店あり。打ち上げ候補: 駅周辺の定食屋・蕎麦屋。
-          下山後はストレッチを忘れずに。
-        </div>
-        <button class="cp-nav-btn" onclick="flyToCP(35.0580,135.6530)">地図で表示</button>
-      </div>
+    <!-- Tab Pages (rendered dynamically from course JSON) -->
+    <div id="tab-content">
+      <div class="tab-page active" id="tab-elevation"></div>
+      <div class="tab-page" id="tab-itinerary"></div>
+      <div class="tab-page" id="tab-checkpoints"></div>
+      <div class="tab-page" id="tab-gear"></div>
+      <div class="tab-page" id="tab-info"></div>
+      <div class="tab-page" id="tab-emergency"></div>
     </div>
 
-    <!-- ==================== 装備チェックリスト ==================== -->
-    <div class="tab-page" id="tab-gear">
-      <div class="sec-title">必携装備</div>
-      <div class="card">
-        <div class="gear-group">
-          <div class="gear-group-title">ウェア</div>
-          <label class="gear-item"><input type="checkbox" class="gear-check">吸汗速乾ベースレイヤー</label>
-          <label class="gear-item"><input type="checkbox" class="gear-check">フリースまたは薄手インサレーション</label>
-          <div class="gear-note">稜線上は市街地より5〜8℃低い。風が吹くと体感温度がさらに低下。</div>
-          <label class="gear-item"><input type="checkbox" class="gear-check">レインウェア上下（防風兼用）</label>
-          <div class="gear-note">天候急変に備え必ず携行。ゴアテックス等防水透湿素材推奨。</div>
-          <label class="gear-item"><input type="checkbox" class="gear-check">トレッキングパンツ（ストレッチ素材）</label>
-          <label class="gear-item"><input type="checkbox" class="gear-check">替え靴下</label>
-        </div>
-        <div class="gear-group">
-          <div class="gear-group-title">フットウェア</div>
-          <label class="gear-item"><input type="checkbox" class="gear-check">トレッキングシューズ（ミドルカット以上推奨）</label>
-          <div class="gear-note">岩場・急斜面あり。ローカットはくるぶし捻挫リスクあり。</div>
-          <label class="gear-item"><input type="checkbox" class="gear-check">ゲイター（雨天・ぬかるみ時）</label>
-        </div>
-        <div class="gear-group">
-          <div class="gear-group-title">ザック・携行品</div>
-          <label class="gear-item"><input type="checkbox" class="gear-check">ザック（20〜30L）</label>
-          <label class="gear-item"><input type="checkbox" class="gear-check">ザックカバー</label>
-          <label class="gear-item"><input type="checkbox" class="gear-check">トレッキングポール</label>
-          <div class="gear-note">西山峠の急登・急下降で膝への負担を大幅に軽減。強く推奨。</div>
-          <label class="gear-item"><input type="checkbox" class="gear-check">ヘッドランプ + 予備電池</label>
-          <div class="gear-note">日没リスク・トンネル通過時に必要。</div>
-        </div>
-      </div>
-
-      <div class="sec-title">水分・食料</div>
-      <div class="card">
-        <div class="gear-group">
-          <label class="gear-item"><input type="checkbox" class="gear-check">水 1.5L以上（夏季は2.0L以上）</label>
-          <div class="gear-note">嵐山市街で補給可能だが、清滝以降は補給地なし。</div>
-          <label class="gear-item"><input type="checkbox" class="gear-check">行動食（おにぎり・パン・エナジーバー等）</label>
-          <label class="gear-item"><input type="checkbox" class="gear-check">昼食</label>
-          <label class="gear-item"><input type="checkbox" class="gear-check">非常食（余分にカロリーメイト等1個）</label>
-          <label class="gear-item"><input type="checkbox" class="gear-check">電解質タブレット or スポーツドリンク粉末</label>
-          <div class="gear-note">発汗量多い場合の低ナトリウム血症予防。</div>
-        </div>
-      </div>
-
-      <div class="sec-title">ナビゲーション・通信</div>
-      <div class="card">
-        <div class="gear-group">
-          <label class="gear-item"><input type="checkbox" class="gear-check">スマートフォン（GPS・本アプリ）</label>
-          <label class="gear-item"><input type="checkbox" class="gear-check">モバイルバッテリー（10000mAh以上推奨）</label>
-          <div class="gear-note">GPS常時ONでバッテリー消費大。予備電源は必須。</div>
-          <label class="gear-item"><input type="checkbox" class="gear-check">紙の地図（京都一周トレイル公式マップ）</label>
-          <div class="gear-note">電子機器故障時のバックアップ。京都市観光協会で購入可。</div>
-          <label class="gear-item"><input type="checkbox" class="gear-check">コンパス</label>
-        </div>
-      </div>
-
-      <div class="sec-title">安全・救急</div>
-      <div class="card">
-        <div class="gear-group">
-          <label class="gear-item"><input type="checkbox" class="gear-check">ファーストエイドキット</label>
-          <div class="gear-note">絆創膏・テーピング・消毒液・鎮痛剤・虫刺され薬。</div>
-          <label class="gear-item"><input type="checkbox" class="gear-check">エマージェンシーシート</label>
-          <label class="gear-item"><input type="checkbox" class="gear-check">ホイッスル</label>
-          <label class="gear-item"><input type="checkbox" class="gear-check">保険証コピー</label>
-          <label class="gear-item"><input type="checkbox" class="gear-check">登山届（コンパス等で提出済み）</label>
-          <label class="gear-item"><input type="checkbox" class="gear-check">現金（小銭含む、バス・自販機用）</label>
-        </div>
-      </div>
-
-      <div class="sec-title">季節別追加装備</div>
-      <div class="card">
-        <p><b>春（3〜5月）:</b> 花粉対策マスク、薄手グローブ、日焼け止め</p>
-        <p><b>夏（6〜8月）:</b> 帽子（日よけ付き）、虫除けスプレー、塩分タブレット、速乾タオル</p>
-        <p><b>秋（9〜11月）:</b> 防寒ミドルレイヤー、ニット帽、手袋</p>
-        <p><b>冬（12〜2月）:</b> ダウンジャケット、厚手グローブ、ネックウォーマー、チェーンスパイク（降雪時）</p>
-      </div>
-
-      <div class="sec-title">重量目安（本コース設定）</div>
-      <div class="card">
-        <table class="data-table">
-          <tr><td>基礎体重</td><td class="num em">60.0 kg</td></tr>
-          <tr><td>装備重量</td><td class="num em">5.0 kg</td></tr>
-          <tr><td>合計（カロリー計算基準）</td><td class="num em">65.0 kg</td></tr>
-        </table>
-        <p style="font-size:10.5px;color:var(--clr-text-sub);margin-top:4px;">
-          装備重量を軽く保つことで膝への負担と消費カロリーを抑えられます。不要な荷物は持たないこと。
-        </p>
-      </div>
-    </div>
-
-    <!-- ==================== 補足情報 ==================== -->
-    <div class="tab-page" id="tab-info">
-
-      <div class="sec-title">アクセス</div>
-      <div class="card">
-        <div class="card-title">起点へのアクセス</div>
-        <ul>
-          <li><b>京都駅から:</b> 京都バス73系統「苔寺・鈴虫寺」行き 約60分（始発 6:20頃）</li>
-          <li><b>四条烏丸から:</b> 京都バス73系統 約45分</li>
-          <li><b>阪急桂駅から:</b> 京都バス63系統 約15分</li>
-        </ul>
-      </div>
-      <div class="card">
-        <div class="card-title">ゴールからの帰路</div>
-        <ul>
-          <li><b>上桂駅:</b> 阪急嵐山線 → 桂駅乗り換え → 京都河原町・大阪梅田方面</li>
-          <li>桂駅までは1駅（約2分）。河原町まで約15分、梅田まで約45分。</li>
-        </ul>
-      </div>
-
-      <div class="sec-title">トイレ情報</div>
-      <div class="card">
-        <table class="data-table">
-          <thead><tr><th>場所</th><th>距離</th><th>種別</th><th>備考</th></tr></thead>
-          <tbody>
-            <tr><td>苔寺バス停横</td><td class="num">0.0km</td><td>和式</td><td>ペーパーあり</td></tr>
-            <tr><td>嵐山公園中之島</td><td class="num">6.1km</td><td>水洗</td><td>多目的トイレあり</td></tr>
-            <tr><td>清滝バス停横</td><td class="num">8.0km</td><td>水洗</td><td>ペーパーあり</td></tr>
-            <tr><td>上桂駅</td><td class="num">15.0km</td><td>水洗</td><td>駅構内</td></tr>
-          </tbody>
-        </table>
-        <p style="font-size:10.5px;color:var(--clr-text-sub);margin-top:4px;">
-          清滝〜ゴール間（約7km）はトイレなし。清滝で必ず済ませること。携帯トイレ推奨。
-        </p>
-      </div>
-
-      <div class="sec-title">水場・補給ポイント</div>
-      <div class="card">
-        <table class="data-table">
-          <thead><tr><th>場所</th><th>距離</th><th>補給内容</th></tr></thead>
-          <tbody>
-            <tr><td>苔寺バス停付近</td><td class="num">0.0km</td><td>自販機2台</td></tr>
-            <tr><td>嵐山市街</td><td class="num">6.1km</td><td>コンビニ・飲食店・自販機多数</td></tr>
-            <tr><td>清滝集落</td><td class="num">8.0km</td><td>自販機1台</td></tr>
-            <tr><td>上桂駅前</td><td class="num">15.0km</td><td>コンビニ・飲食店</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="sec-title">危険箇所・注意事項</div>
-      <div class="card">
-        <ul>
-          <li><b>松尾山手前の急登:</b> 序盤から急勾配。ウォームアップ不足での心拍急上昇に注意。</li>
-          <li><b>嵐山市街の車道横断:</b> 観光バス・タクシー往来あり。横断歩道を利用すること。</li>
-          <li><b>清滝トンネル:</b> 車両通行あり。歩行者用通路が狭い。ヘッドランプ点灯推奨。</li>
-          <li><b>清滝→西山峠の急登:</b> コース核心部。岩場・鎖場あり。雨後は極めて滑りやすい。</li>
-          <li><b>西山峠付近のやせ尾根:</b> 両側が切れ落ちた箇所あり。強風時は特に注意。</li>
-          <li><b>下山路の九十九折:</b> 落ち葉で滑りやすい。膝への衝撃に注意。ポール使用推奨。</li>
-        </ul>
-      </div>
-
-      <div class="sec-title">野生動物・害虫</div>
-      <div class="card">
-        <ul>
-          <li><b>ニホンザル:</b> 嵐山周辺に生息。食料を見せない・目を合わせない。</li>
-          <li><b>イノシシ:</b> 西山山中に出没例あり。遭遇時は静かに後退。</li>
-          <li><b>マダニ:</b> 春〜秋に活動。長袖長ズボン着用。下山後の全身チェック必須。</li>
-          <li><b>スズメバチ:</b> 夏〜秋。黒い服・香水を避ける。巣に近づかない。</li>
-          <li><b>ヤマビル:</b> 雨後の低山で出没。塩・虫除けスプレーが有効。</li>
-        </ul>
-      </div>
-
-      <div class="sec-title">コースマーキング</div>
-      <div class="card">
-        <p>
-          京都一周トレイルは京都市が整備した公式コース。標識は <b>赤地に白文字の番号標識</b>（西山1〜西山XX）が
-          設置されている。分岐点には方向を示す矢印標識あり。
-        </p>
-        <ul>
-          <li>標識間隔は概ね200〜500m。5分以上標識が見つからない場合はルートミスの可能性。</li>
-          <li>GPS（本アプリ）と紙地図を併用し、定期的に現在地を確認すること。</li>
-          <li>不明瞭な分岐では必ず立ち止まり、ルートを確認してから進むこと。</li>
-        </ul>
-      </div>
-
-      <div class="sec-title">気象条件の判断基準</div>
-      <div class="card">
-        <table class="data-table">
-          <thead><tr><th>条件</th><th>判断</th></tr></thead>
-          <tbody>
-            <tr><td>降水確率 60%以上</td><td class="em" style="color:var(--clr-danger)">中止を強く推奨</td></tr>
-            <tr><td>降水確率 40〜60%</td><td>レインウェア必携で判断。雷注意報なら中止。</td></tr>
-            <tr><td>風速 15m/s以上の予報</td><td class="em" style="color:var(--clr-danger)">稜線通過は極めて危険。中止。</td></tr>
-            <tr><td>気温 35℃以上</td><td>熱中症リスク極大。早朝出発 or 中止。</td></tr>
-            <tr><td>気温 0℃以下</td><td>凍結リスク。チェーンスパイク携行。</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="sec-title">消費カロリーの計算方法</div>
-      <div class="card">
-        <p>本アプリでは以下の計算式（コース定数法）を使用しています。</p>
-        <p style="margin:6px 0;padding:6px;background:#f0f0f0;border-radius:4px;font-size:11px;font-family:monospace;">
-          C = 1.8×T + 0.3×D + 10.0×A_up + 0.6×A_down<br>
-          消費カロリー = C × 体重(装備込)
-        </p>
-        <ul>
-          <li>T: 部分標準コースタイム（時間）</li>
-          <li>D: 歩行距離（km）</li>
-          <li>A_up: 累積上昇量（km）</li>
-          <li>A_down: 累積下降量（km）</li>
-        </ul>
-        <p style="font-size:10.5px;color:var(--clr-text-sub);margin-top:4px;">
-          全行程完走時の推計消費カロリー: 約 <b id="est-total-cal"></b> kcal
-        </p>
-      </div>
-    </div>
-
-    <!-- ==================== 緊急情報 ==================== -->
-    <div class="tab-page" id="tab-emergency">
-      <div class="emergency-box">
-        <div class="card-title">緊急連絡先</div>
-        <div class="emergency-row"><span>警察（事件・事故）</span><a href="tel:110">110</a></div>
-        <div class="emergency-row"><span>消防・救急</span><a href="tel:119">119</a></div>
-        <div class="emergency-row"><span>山岳遭難 京都府警</span><a href="tel:0757514141">075-751-4141</a></div>
-        <div class="emergency-row"><span>右京警察署</span><a href="tel:0754652110">075-465-2110</a></div>
-        <div class="emergency-row"><span>西京警察署</span><a href="tel:0753912110">075-391-2110</a></div>
-      </div>
-
-      <div class="sec-title">救助要請の手順</div>
-      <div class="card">
-        <ol style="padding-left:18px;">
-          <li style="margin-bottom:6px;">安全な場所に移動（崖際・落石危険区域から離れる）</li>
-          <li style="margin-bottom:6px;">119番に電話。伝えること:
-            <ul>
-              <li>「山岳事故です」</li>
-              <li>場所: 「京都一周トレイル西山コース、西山○○番標識付近」</li>
-              <li>本アプリの座標表示を読み上げ</li>
-              <li>傷病者の状態・人数</li>
-              <li>連絡可能な電話番号</li>
-            </ul>
-          </li>
-          <li style="margin-bottom:6px;">ホイッスルを6回吹く（国際山岳遭難信号）→1分待ち→繰り返し</li>
-          <li style="margin-bottom:6px;">エマージェンシーシートで保温。動かさない（骨折疑い時）</li>
-          <li>電池を節約。機内モードにしてGPSのみONにする手もある。</li>
-        </ol>
-      </div>
-
-      <div class="sec-title">現在位置情報</div>
-      <div class="card">
-        <p>GPS取得時、以下の情報が自動更新されます。救助要請時にこの画面を参照してください。</p>
-        <table class="data-table">
-          <tr><td>緯度</td><td class="num em" id="em-lat">未取得</td></tr>
-          <tr><td>経度</td><td class="num em" id="em-lng">未取得</td></tr>
-          <tr><td>精度</td><td class="num" id="em-acc">—</td></tr>
-          <tr><td>ルート上距離</td><td class="num" id="em-dist">—</td></tr>
-        </table>
-      </div>
-
-      <div class="sec-title">最寄り医療機関</div>
-      <div class="card">
-        <ul>
-          <li><b>嵯峨嵐山周辺:</b> 右京病院（075-871-0511）徒歩20分</li>
-          <li><b>上桂駅周辺:</b> 洛西ニュータウン病院（075-331-6611）徒歩15分</li>
-          <li><b>夜間・休日:</b> 京都市急病診療所（075-354-6021）四条烏丸</li>
-        </ul>
-      </div>
-
-      <div class="sec-title">携帯電波状況</div>
-      <div class="card">
-        <table class="data-table">
-          <thead><tr><th>区間</th><th>docomo</th><th>au</th><th>SoftBank</th></tr></thead>
-          <tbody>
-            <tr><td>起点〜松尾山</td><td>良好</td><td>良好</td><td>良好</td></tr>
-            <tr><td>松尾山〜嵐山</td><td>概ね良好</td><td>概ね良好</td><td>やや不安定</td></tr>
-            <tr><td>嵐山市街</td><td>良好</td><td>良好</td><td>良好</td></tr>
-            <tr><td>清滝集落</td><td>やや不安定</td><td>やや不安定</td><td>不安定</td></tr>
-            <tr><td>清滝→西山峠</td><td class="em" style="color:var(--clr-danger)">圏外あり</td><td class="em" style="color:var(--clr-danger)">圏外あり</td><td class="em" style="color:var(--clr-danger)">圏外多い</td></tr>
-            <tr><td>西山峠〜小塩山</td><td>不安定</td><td>不安定</td><td>圏外あり</td></tr>
-            <tr><td>小塩山〜ゴール</td><td>概ね良好</td><td>概ね良好</td><td>概ね良好</td></tr>
-          </tbody>
-        </table>
-        <p style="font-size:10.5px;color:var(--clr-danger);margin-top:4px;">
-          清滝〜西山峠間は全キャリアで圏外になる可能性あり。緊急時に備えオフライン地図も準備すること。
-        </p>
-      </div>
-    </div>
-
-  </div><!-- /tab-content -->
-</div><!-- /panel -->
+  </div><!-- /panel -->
+</div><!-- /course-view -->
 
 <div id="toast"></div>
 
 <script>
-// ===== セクション3: 定数 =====
-const ROUTE_TOTAL_DISTANCE_KM = 15.0;
-const ROUTE_TOTAL_ASCENT_KM = 0.827;
-const ROUTE_TOTAL_DESCENT_KM = 0.832;
-const ROUTE_STANDARD_TIME_HR = 6.8;
-const TARGET_COURSE_CONSTANT = 25.5;
-const USER_BASE_WEIGHT_KG = 60.0;
-const GEAR_WEIGHT_KG = 5.0;
-const TOTAL_WEIGHT_KG = USER_BASE_WEIGHT_KG + GEAR_WEIGHT_KG;
+'use strict';
 
-// 全行程推計カロリー表示
-(function() {
-  const C = 1.8 * ROUTE_STANDARD_TIME_HR + 0.3 * ROUTE_TOTAL_DISTANCE_KM
-          + 10.0 * ROUTE_TOTAL_ASCENT_KM + 0.6 * ROUTE_TOTAL_DESCENT_KM;
-  const el = document.getElementById('est-total-cal');
-  if (el) el.textContent = Math.round(C * TOTAL_WEIGHT_KG);
-})();
+// ===== Constants =====
+const COURSES_INDEX_PATH = './data/courses/index.json';
 
-// ===== セクション4: 状態管理 =====
+// ===== State =====
 const AppState = {
+  coursesIndex: null,
+  currentCourse: null,
   currentLocation: null,
   trajectory: [],
   elapsedTimeMs: 0,
   startTimeMs: null,
   currentDistanceKm: 0,
   currentAscentKm: 0,
-  currentDescentKm: 0
+  currentDescentKm: 0,
+  lastRecordedDistanceKm: 0,      // last distance committed to ProgressStore for forward-progress union
+  lastVisibleAnchor: null,        // captured when page goes hidden: { distanceKm, lat, lng, accuracy, timestamp, distFromRouteM }
+  lastFixDistFromRouteM: null     // most recent off-route distance for the last GPS fix
 };
 
-// ===== グローバル変数 =====
-let map, routeLine, routeGeoJSON, elevationChart;
-let currentPosMarker, trajectoryPolyline;
+// ===== Globals (course-scoped) =====
+let map = null;
+let routeLine = null;
+let routeGeoJSON = null;
+let elevationChart = null;
+let currentPosMarker = null;
+let trajectoryPolyline = null;
+let coveredLayer = null;          // green overlay polylines for already-walked route segments
+let routeElevationProfile = null; // { distancesKm[], cumulativeAscentM[], cumulativeDescentM[] }
 let peakMarkers = [];
 let lastProcessedTime = 0;
 let wakeLockSentinel = null;
 let timerInterval = null;
+let geoWatchId = null;
 
-// ピーク座標（西山コース主要ポイント）
-const PEAKS = [
-  { name: '松尾山', lat: 34.9890, lng: 135.6742, elevation: 330 },
-  { name: '嵐山展望', lat: 35.0098, lng: 135.6530, elevation: 380 },
-  { name: '西山峠', lat: 35.0290, lng: 135.6558, elevation: 390 },
-  { name: '小塩山', lat: 35.0455, lng: 135.6540, elevation: 310 }
-];
-
-// ===== タブ切り替え =====
-document.getElementById('tab-bar').addEventListener('click', function(e) {
-  const btn = e.target.closest('.tab-btn');
-  if (!btn) return;
-  document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
-  document.querySelectorAll('.tab-page').forEach(function(p) { p.classList.remove('active'); });
-  btn.classList.add('active');
-  document.getElementById(btn.dataset.tab).classList.add('active');
-});
-
-// ===== チェックポイント→地図ジャンプ =====
-function flyToCP(lat, lng) {
-  if (map) map.flyTo([lat, lng], 16, { duration: 0.8 });
-  // タブを標高に戻す（地図が見えるように）
-  document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
-  document.querySelectorAll('.tab-page').forEach(function(p) { p.classList.remove('active'); });
-  document.querySelector('[data-tab="tab-elevation"]').classList.add('active');
-  document.getElementById('tab-elevation').classList.add('active');
+// ===== Utilities =====
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-// ===== トースト表示 =====
+function difficultyStars(n) {
+  const k = Math.max(0, Math.min(5, Number(n) || 0));
+  return '★'.repeat(k) + '☆'.repeat(5 - k);
+}
+
 function showToast(msg, durationMs) {
   const el = document.getElementById('toast');
   el.textContent = msg;
   el.style.display = 'block';
-  setTimeout(function() { el.style.display = 'none'; }, durationMs || 4000);
+  setTimeout(function () { el.style.display = 'none'; }, durationMs || 4000);
 }
 
-// ===== セクション7: Wake Lock API =====
-async function requestWakeLock() {
-  if (!('wakeLock' in navigator)) {
-    console.warn('Wake Lock API is not supported in this browser.');
+function formatKm(km) {
+  return (Math.round(km * 100) / 100).toFixed(2);
+}
+
+function formatHr(hr) {
+  if (hr == null) return '—';
+  const h = Math.floor(hr);
+  const m = Math.round((hr - h) * 60);
+  return h > 0 ? `${h}時間${m}分` : `${m}分`;
+}
+
+// ===== Landing rendering =====
+function renderLanding(idx) {
+  const loopBox = document.getElementById('loop-courses');
+  const extBox = document.getElementById('extension-courses');
+  loopBox.innerHTML = '';
+  extBox.innerHTML = '';
+
+  // Loop progress (sum across loopMember courses).
+  // Display the canonical loop total from index.json (e.g., 84 km) so the denominator
+  // does not shrink when some courses are not yet implemented in data/courses/.
+  const lp = ProgressStore.getLoopProgress(idx);
+  const canonicalLoopKm = (idx.loop && idx.loop.totalDistanceKm) || lp.totalLoopKm || 84;
+  const coveredKm = lp.totalCoveredKm || 0;
+  const pct = canonicalLoopKm > 0 ? Math.min(coveredKm / canonicalLoopKm, 1) : 0;
+  document.getElementById('loop-bar').style.width = (pct * 100).toFixed(1) + '%';
+  document.getElementById('loop-progress-text').textContent =
+    coveredKm.toFixed(2) + ' km / ' + canonicalLoopKm.toFixed(1) + ' km';
+  document.getElementById('loop-progress-pct').textContent = (pct * 100).toFixed(1) + '%';
+
+  // "全周完歩" banner if all loop members are completed
+  const card = document.querySelector('.loop-progress-card');
+  const oldBanner = card.querySelector('.all-completed-banner');
+  if (oldBanner) oldBanner.remove();
+  if (lp.allCompleted) {
+    const banner = document.createElement('div');
+    banner.className = 'all-completed-banner';
+    banner.textContent = '🏆 京都一周トレイル本線 全周完歩を達成しました！';
+    card.appendChild(banner);
+  }
+
+  // Sort courses by `order`
+  const sorted = idx.courses.slice().sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
+
+  sorted.forEach(function (c) {
+    const courseEl = document.createElement('div');
+    const classes = ['course-card'];
+    if (c.implemented) classes.push('implemented'); else classes.push('coming-soon');
+    if (!c.loopMember) classes.push('extension');
+    courseEl.className = classes.join(' ');
+    courseEl.dataset.courseId = c.id;
+
+    const distLabel = c.summary && c.summary.totalDistanceKm != null
+      ? c.summary.totalDistanceKm.toFixed(1) + ' km' : '— km';
+    const ascentLabel = c.summary && c.summary.totalAscentM != null
+      ? c.summary.totalAscentM + ' m' : '—';
+    const timeLabel = c.summary && c.summary.standardTimeHr != null
+      ? formatHr(c.summary.standardTimeHr) : '—';
+    const ccLabel = c.summary && c.summary.courseConstant != null
+      ? c.summary.courseConstant.toFixed(1) : '—';
+
+    // Per-course progress
+    const stored = ProgressStore.getCourse(c.id);
+    const planned = (c.summary && c.summary.totalDistanceKm) || 0;
+    const courseCovered = stored ? stored.totalCoveredKm : 0;
+    const coursePct = planned > 0 ? Math.min(courseCovered / planned, 1) : 0;
+    const isCompleted = !!(stored && stored.completedAt);
+
+    let badge = '';
+    if (isCompleted) badge = '<span class="completed-badge">完歩</span>';
+    else if (!c.implemented) badge = '<span class="coming-soon-badge">準備中</span>';
+    else if (!c.loopMember) badge = '<span class="extension-badge">拡張</span>';
+
+    courseEl.innerHTML =
+      '<div class="course-card-head">' +
+      '  <div>' +
+      '    <span class="course-card-order">No.' + (c.order || '?') + '</span> ' +
+      '    <span class="course-card-name">' + escapeHtml(c.name) + '</span>' +
+      '  </div>' + badge +
+      '</div>' +
+      '<div class="course-card-sub">' + escapeHtml(c.subtitle || '') + '</div>' +
+      '<div class="course-card-stats">' +
+      '  <span><span class="stat-key">距離</span><span class="stat-val">' + distLabel + '</span></span>' +
+      '  <span><span class="stat-key">標高↑</span><span class="stat-val">' + ascentLabel + '</span></span>' +
+      '  <span><span class="stat-key">標準</span><span class="stat-val">' + timeLabel + '</span></span>' +
+      '  <span><span class="stat-key">CC</span><span class="stat-val">' + ccLabel + '</span></span>' +
+      '</div>' +
+      '<div class="course-card-progress">' +
+      '  <div class="progress-bar"><div class="progress-bar-fill" style="width:' + (coursePct * 100).toFixed(1) + '%"></div></div>' +
+      '  <span>' + courseCovered.toFixed(2) + 'km / ' + (coursePct * 100).toFixed(0) + '%</span>' +
+      '</div>';
+
+    if (c.implemented) {
+      courseEl.addEventListener('click', function () { selectCourse(c.id); });
+    }
+    (c.loopMember ? loopBox : extBox).appendChild(courseEl);
+  });
+}
+
+// ===== Course selection =====
+async function selectCourse(courseId) {
+  const meta = AppState.coursesIndex.courses.find(function (c) { return c.id === courseId; });
+  if (!meta || !meta.implemented) {
+    showToast('このコースはまだ準備中です', 3000);
     return;
   }
   try {
-    wakeLockSentinel = await navigator.wakeLock.request('screen');
-    wakeLockSentinel.addEventListener('release', function() {
-      console.log('Wake Lock released.');
-    });
+    const res = await fetch('./data/courses/' + meta.dataPath.replace(/^\.\//, ''));
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const course = await res.json();
+    enterCourseView(course);
   } catch (err) {
-    console.warn('Wake Lock request failed:', err);
+    console.error('Failed to load course:', err);
+    showToast('コースデータの読み込みに失敗しました', 5000);
   }
 }
 
-document.addEventListener('visibilitychange', function() {
-  if (document.visibilityState === 'visible') {
-    requestWakeLock();
-  }
-});
+function enterCourseView(course) {
+  AppState.currentCourse = course;
 
-// ===== ダッシュボード更新 =====
+  // Reset per-course state
+  AppState.trajectory = [];
+  AppState.elapsedTimeMs = 0;
+  AppState.startTimeMs = null;
+  AppState.currentDistanceKm = 0;
+  AppState.currentAscentKm = 0;
+  AppState.currentDescentKm = 0;
+  AppState.lastRecordedDistanceKm = 0;
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+
+  // Open a new walking session in the persistent store
+  ProgressStore.startSession(course.id);
+
+  // Update URL hash so reload restores selection
+  if (location.hash !== '#course=' + course.id) {
+    history.replaceState(null, '', '#course=' + course.id);
+  }
+
+  // Update header
+  document.getElementById('hdr-course-name').textContent = course.name;
+  document.title = '京都一周トレイル ' + course.name;
+
+  // Render all tab content
+  renderElevationTab(course);
+  renderItineraryTab(course);
+  renderCheckpointsTab(course);
+  renderGearTab(course);
+  renderInfoTab(course);
+  renderEmergencyTab(course);
+
+  // Reset dashboard
+  document.getElementById('val-dist').textContent = '0.00';
+  document.getElementById('val-ascent').textContent = '0';
+  document.getElementById('val-cal').textContent = '0';
+  document.getElementById('val-time').textContent = '00:00';
+  document.getElementById('val-pace').textContent = '--';
+
+  // Reset to first tab
+  document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
+  document.querySelectorAll('.tab-page').forEach(function (p) { p.classList.remove('active'); });
+  document.querySelector('[data-tab="tab-elevation"]').classList.add('active');
+  document.getElementById('tab-elevation').classList.add('active');
+
+  // Show course view, hide landing
+  document.getElementById('landing').classList.add('hidden');
+  document.getElementById('course-view').classList.remove('hidden');
+
+  // Init map (or re-init if user switched)
+  initMapForCourse(course);
+
+  // Render existing covered intervals from prior sessions (cross-day resume)
+  renderCoveredOnMap(course);
+
+  // Geolocation + Wake Lock (Wake Lock only if user opted into "always-on" mode)
+  startGeolocation();
+  const mode = (window.ProgressStore ? ProgressStore.getUser().powerMode : 'eco') || 'eco';
+  if (mode === 'always-on') requestWakeLock();
+}
+
+function backToLanding() {
+  // Finalize the current session in the persistent store
+  if (AppState.currentCourse) {
+    ProgressStore.updateSession(AppState.currentCourse.id, {
+      distanceKm: AppState.currentDistanceKm,
+      elapsedMs: AppState.elapsedTimeMs,
+      lastDistanceKm: AppState.currentDistanceKm
+    });
+    ProgressStore.endSession(AppState.currentCourse.id);
+  }
+
+  // Stop geolocation watch and clear timer
+  if (geoWatchId != null && navigator.geolocation) {
+    navigator.geolocation.clearWatch(geoWatchId);
+    geoWatchId = null;
+  }
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+
+  // Tear down map
+  if (map) { map.remove(); map = null; }
+  routeLine = null; routeGeoJSON = null;
+  if (elevationChart) { elevationChart.destroy(); elevationChart = null; }
+  currentPosMarker = null; trajectoryPolyline = null;
+  if (coveredLayer) { coveredLayer = null; }   // removed when map.remove()
+  peakMarkers = [];
+
+  AppState.currentCourse = null;
+  history.replaceState(null, '', location.pathname + location.search);
+
+  document.title = '京都一周トレイル';
+  document.getElementById('course-view').classList.add('hidden');
+  document.getElementById('landing').classList.remove('hidden');
+
+  // Re-render landing so updated progress reflects the just-finished session
+  renderLanding(AppState.coursesIndex);
+}
+
+// ===== Tab content rendering =====
+function renderElevationTab(course) {
+  const s = course.summary || {};
+  const totalKm = s.totalDistanceKm != null ? s.totalDistanceKm.toFixed(1) : '—';
+  const ascent = s.totalAscentM != null ? s.totalAscentM : '—';
+  const descent = s.totalDescentM != null ? s.totalDescentM : '—';
+  const stdTime = s.standardTimeLabel || (s.standardTimeHr != null ? formatHr(s.standardTimeHr) : '—');
+  const high = s.highestM != null ? '約 ' + s.highestM + ' m' : '—';
+  const low = s.lowestM != null ? '約 ' + s.lowestM + ' m' : '—';
+  const totalWeight = (Number(s.userBaseWeightKg) || 0) + (Number(s.gearWeightKg) || 0);
+  const cc = s.courseConstant != null ? s.courseConstant.toFixed(1) : '—';
+
+  document.getElementById('tab-elevation').innerHTML =
+    '<div id="chart-container"><canvas id="elevation-chart"></canvas></div>' +
+    '<div style="padding:0 4px;">' +
+    '  <div class="sec-title">コースサマリー</div>' +
+    '  <table class="data-table">' +
+    '    <tr><td>総距離</td><td class="num em">' + totalKm + ' km</td><td>累積標高(上り)</td><td class="num em">' + ascent + ' m</td></tr>' +
+    '    <tr><td>標準コースタイム</td><td class="num em">' + stdTime + '</td><td>累積標高(下り)</td><td class="num em">' + descent + ' m</td></tr>' +
+    '    <tr><td>最高地点</td><td class="num">' + high + '</td><td>最低地点</td><td class="num">' + low + '</td></tr>' +
+    '    <tr><td>体重(装備込)</td><td class="num">' + totalWeight.toFixed(1) + ' kg</td><td>目標コース定数</td><td class="num">' + cc + '</td></tr>' +
+    '  </table>' +
+    '</div>';
+}
+
+function renderItineraryTab(course) {
+  const itinerary = course.itinerary || [];
+  const segments = course.segments || [];
+  const pace = course.pace || {};
+  const escapes = course.escapeRoutes || [];
+
+  let html = '<div class="sec-title">行動計画タイムテーブル</div>';
+  html += '<table class="data-table"><thead><tr>' +
+    '<th>時刻</th><th>地点</th><th>標高</th><th>区間</th><th>累計</th><th>行動</th>' +
+    '</tr></thead><tbody>';
+  itinerary.forEach(function (row) {
+    const seg = row.segmentKm == null ? '—' : row.segmentKm.toFixed(1) + 'km';
+    const cum = row.cumulativeKm == null ? '—' : row.cumulativeKm.toFixed(1) + 'km';
+    const placeCls = row.isMajor ? 'em' : '';
+    html += '<tr>' +
+      '<td>' + escapeHtml(row.time || '') + '</td>' +
+      '<td' + (placeCls ? ' class="' + placeCls + '"' : '') + '>' + escapeHtml(row.place || '') + '</td>' +
+      '<td class="num">' + (row.elevationM != null ? row.elevationM + 'm' : '—') + '</td>' +
+      '<td class="num">' + seg + '</td>' +
+      '<td class="num">' + cum + '</td>' +
+      '<td>' + escapeHtml(row.action || '') + '</td>' +
+      '</tr>';
+  });
+  html += '</tbody></table>';
+
+  if (segments.length) {
+    html += '<div class="sec-title">区間別難易度・所要時間</div>';
+    html += '<table class="data-table"><thead><tr>' +
+      '<th>区間</th><th>距離</th><th>標高差</th><th>所要</th><th>難度</th><th>路面</th>' +
+      '</tr></thead><tbody>';
+    segments.forEach(function (s) {
+      const dKm = s.distanceKm != null ? s.distanceKm.toFixed(1) + 'km' : '—';
+      const dE = s.deltaElevationM != null ? (s.deltaElevationM >= 0 ? '+' : '') + s.deltaElevationM + 'm' : '—';
+      const std = s.stdMinutes != null ? s.stdMinutes + '分' : '—';
+      html += '<tr>' +
+        '<td>' + escapeHtml(s.from || '') + '→' + escapeHtml(s.to || '') + '</td>' +
+        '<td class="num">' + dKm + '</td>' +
+        '<td class="num">' + dE + '</td>' +
+        '<td class="num">' + std + '</td>' +
+        '<td>' + difficultyStars(s.difficulty) + '</td>' +
+        '<td>' + escapeHtml(s.surface || '') + '</td>' +
+        '</tr>';
+    });
+    html += '</tbody></table>';
+  }
+
+  if (pace.standardTimeLabel || (pace.splits && pace.splits.length)) {
+    html += '<div class="sec-title">ペース管理の目安</div><div class="card">';
+    if (pace.standardTimeLabel || pace.totalActionTimeLabel) {
+      html += '<p>標準コースタイム <b>' + escapeHtml(pace.standardTimeLabel || '—') + '</b>（休憩含まず）。';
+      if (pace.totalActionTimeLabel) {
+        html += '休憩込みの総行動時間は <b>' + escapeHtml(pace.totalActionTimeLabel) + '</b> を想定。';
+      }
+      html += '</p>';
+    }
+    if (pace.splits && pace.splits.length) {
+      html += '<ul>';
+      pace.splits.forEach(function (sp) {
+        const noteHtml = sp.note ? '（' + escapeHtml(sp.note) + '）' : '';
+        html += '<li>' + escapeHtml(sp.label) + ': 距離 ' + sp.distanceKm.toFixed(1) + 'km / 目安 ' + escapeHtml(sp.etaLabel) + noteHtml + '</li>';
+      });
+      html += '</ul>';
+    }
+    if (pace.warnings && pace.warnings.length) {
+      html += '<ul>';
+      pace.warnings.forEach(function (w) { html += '<li>' + escapeHtml(w) + '</li>'; });
+      html += '</ul>';
+    }
+    html += '</div>';
+  }
+
+  if (escapes.length) {
+    html += '<div class="sec-title">エスケープルート</div><div class="card"><ul>';
+    escapes.forEach(function (e) {
+      html += '<li><b>' + escapeHtml(e.atCheckpoint) + '（' + e.atKm.toFixed(1) + 'km地点）:</b> ' + escapeHtml(e.description) + '</li>';
+    });
+    html += '</ul></div>';
+  }
+
+  document.getElementById('tab-itinerary').innerHTML = html;
+}
+
+function renderCheckpointsTab(course) {
+  const cps = course.checkpoints || [];
+  let html = '<div class="sec-title">チェックポイント一覧</div>';
+  cps.forEach(function (cp) {
+    const badges = (cp.types || []).map(function (t) {
+      return '<span class="cp-badge ' + t.toLowerCase() + '">' + escapeHtml(t) + '</span>';
+    }).join('');
+    const elev = cp.elevationRangeM
+      ? cp.elevationRangeM[0] + '〜' + cp.elevationRangeM[1] + 'm'
+      : (cp.elevationM != null ? cp.elevationM + 'm' : '—');
+    const meta = '標高 ' + elev +
+      ' ／ 座標 ' + cp.lat.toFixed(4) + ', ' + cp.lng.toFixed(4) +
+      (cp.etaFromPrevLabel ? ' ／ 所要 ' + escapeHtml(cp.etaFromPrevLabel) : '');
+    html += '<div class="card cp-card" id="' + escapeHtml(cp.id) + '">' +
+      '  <div class="cp-header">' +
+      '    <div>' + badges + '<span class="card-title">' + escapeHtml(cp.name) + '</span></div>' +
+      '    <span style="font-size:10px;color:var(--clr-text-sub)">' + cp.distanceKm.toFixed(1) + 'km</span>' +
+      '  </div>' +
+      '  <div class="cp-meta">' + meta + '</div>' +
+      '  <div class="cp-detail">' + escapeHtml(cp.description || '') + '</div>' +
+      (cp.tip ? '  <div class="cp-tip">' + escapeHtml(cp.tip) + '</div>' : '') +
+      '  <button class="cp-nav-btn" data-lat="' + cp.lat + '" data-lng="' + cp.lng + '">地図で表示</button>' +
+      '</div>';
+  });
+  document.getElementById('tab-checkpoints').innerHTML = html;
+}
+
+function renderGearTab(course) {
+  const g = course.gear || {};
+  const groups = g.groups || [];
+  const seasonal = g.seasonal || [];
+  const s = course.summary || {};
+  const baseWt = s.userBaseWeightKg != null ? s.userBaseWeightKg.toFixed(1) : '—';
+  const gearWt = s.gearWeightKg != null ? s.gearWeightKg.toFixed(1) : '—';
+  const totalWt = ((Number(s.userBaseWeightKg) || 0) + (Number(s.gearWeightKg) || 0)).toFixed(1);
+
+  let html = '<div class="sec-title">必携装備</div><div class="card">';
+  groups.forEach(function (grp) {
+    html += '<div class="gear-group"><div class="gear-group-title">' + escapeHtml(grp.title) + '</div>';
+    (grp.items || []).forEach(function (it) {
+      html += '<label class="gear-item"><input type="checkbox" class="gear-check">' + escapeHtml(it.name) + '</label>';
+      if (it.note) html += '<div class="gear-note">' + escapeHtml(it.note) + '</div>';
+    });
+    html += '</div>';
+  });
+  html += '</div>';
+
+  if (seasonal.length) {
+    html += '<div class="sec-title">季節別追加装備</div><div class="card">';
+    seasonal.forEach(function (se) {
+      html += '<p><b>' + escapeHtml(se.season) + ':</b> ' + escapeHtml(se.items) + '</p>';
+    });
+    html += '</div>';
+  }
+
+  html += '<div class="sec-title">重量目安（本コース設定）</div><div class="card">' +
+    '<table class="data-table">' +
+    '<tr><td>基礎体重</td><td class="num em">' + baseWt + ' kg</td></tr>' +
+    '<tr><td>装備重量</td><td class="num em">' + gearWt + ' kg</td></tr>' +
+    '<tr><td>合計（カロリー計算基準）</td><td class="num em">' + totalWt + ' kg</td></tr>' +
+    '</table>';
+  if (g.weightNote) {
+    html += '<p style="font-size:10.5px;color:var(--clr-text-sub);margin-top:4px;">' + escapeHtml(g.weightNote) + '</p>';
+  }
+  html += '</div>';
+
+  document.getElementById('tab-gear').innerHTML = html;
+}
+
+function renderInfoTab(course) {
+  const t = course.transit || {};
+  const toilets = course.toilets || [];
+  const water = course.waterPoints || [];
+  const hazards = course.hazards || [];
+  const wildlife = course.wildlife || [];
+  const marking = course.marking || {};
+  const weather = course.weatherCriteria || [];
+  const s = course.summary || {};
+  let html = '';
+
+  if ((t.access && t.access.length) || (t.return && t.return.length)) {
+    html += '<div class="sec-title">アクセス</div>';
+    if (t.access && t.access.length) {
+      html += '<div class="card"><div class="card-title">起点へのアクセス</div><ul>';
+      t.access.forEach(function (a) {
+        const note = a.note ? '（' + escapeHtml(a.note) + '）' : '';
+        html += '<li><b>' + escapeHtml(a.from) + 'から:</b> ' + escapeHtml(a.route) + ' ' + escapeHtml(a.duration || '') + note + '</li>';
+      });
+      html += '</ul></div>';
+    }
+    if (t.return && t.return.length) {
+      html += '<div class="card"><div class="card-title">ゴールからの帰路</div><ul>';
+      t.return.forEach(function (r) {
+        html += '<li><b>' + escapeHtml(r.from) + ':</b> ' + escapeHtml(r.route) + (r.note ? ' / ' + escapeHtml(r.note) : '') + '</li>';
+      });
+      html += '</ul></div>';
+    }
+  }
+
+  if (toilets.length) {
+    html += '<div class="sec-title">トイレ情報</div><div class="card">' +
+      '<table class="data-table"><thead><tr><th>場所</th><th>距離</th><th>種別</th><th>備考</th></tr></thead><tbody>';
+    toilets.forEach(function (t2) {
+      html += '<tr><td>' + escapeHtml(t2.place) + '</td><td class="num">' + t2.atKm.toFixed(1) + 'km</td><td>' + escapeHtml(t2.type || '') + '</td><td>' + escapeHtml(t2.note || '') + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    if (course.toiletNote) {
+      html += '<p style="font-size:10.5px;color:var(--clr-text-sub);margin-top:4px;">' + escapeHtml(course.toiletNote) + '</p>';
+    }
+    html += '</div>';
+  }
+
+  if (water.length) {
+    html += '<div class="sec-title">水場・補給ポイント</div><div class="card">' +
+      '<table class="data-table"><thead><tr><th>場所</th><th>距離</th><th>補給内容</th></tr></thead><tbody>';
+    water.forEach(function (w) {
+      html += '<tr><td>' + escapeHtml(w.place) + '</td><td class="num">' + w.atKm.toFixed(1) + 'km</td><td>' + escapeHtml(w.items) + '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+  }
+
+  if (hazards.length) {
+    html += '<div class="sec-title">危険箇所・注意事項</div><div class="card"><ul>';
+    hazards.forEach(function (h) {
+      html += '<li><b>' + escapeHtml(h.title) + ':</b> ' + escapeHtml(h.description) + '</li>';
+    });
+    html += '</ul></div>';
+  }
+
+  if (wildlife.length) {
+    html += '<div class="sec-title">野生動物・害虫</div><div class="card"><ul>';
+    wildlife.forEach(function (w) {
+      html += '<li><b>' + escapeHtml(w.name) + ':</b> ' + escapeHtml(w.description) + '</li>';
+    });
+    html += '</ul></div>';
+  }
+
+  if (marking.summary) {
+    html += '<div class="sec-title">コースマーキング</div><div class="card">' +
+      '<p>' + escapeHtml(marking.summary) + '</p>';
+    if (marking.tips && marking.tips.length) {
+      html += '<ul>';
+      marking.tips.forEach(function (tp) { html += '<li>' + escapeHtml(tp) + '</li>'; });
+      html += '</ul>';
+    }
+    html += '</div>';
+  }
+
+  if (weather.length) {
+    html += '<div class="sec-title">気象条件の判断基準</div><div class="card">' +
+      '<table class="data-table"><thead><tr><th>条件</th><th>判断</th></tr></thead><tbody>';
+    weather.forEach(function (w) {
+      const cls = w.severity === 'danger' ? ' class="em" style="color:var(--clr-danger)"' : '';
+      const judgmentHtml = w.severity === 'danger'
+        ? '<span class="em" style="color:var(--clr-danger)">' + escapeHtml(w.judgment) + '</span>'
+        : escapeHtml(w.judgment);
+      html += '<tr><td>' + escapeHtml(w.condition) + '</td><td>' + judgmentHtml + '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+  }
+
+  // Calorie formula card
+  const stdHr = s.standardTimeHr;
+  const totalKm = s.totalDistanceKm;
+  const ascentKm = s.totalAscentM != null ? s.totalAscentM / 1000 : null;
+  const descentKm = s.totalDescentM != null ? s.totalDescentM / 1000 : null;
+  const totalWt = (Number(s.userBaseWeightKg) || 0) + (Number(s.gearWeightKg) || 0);
+  let estCal = '—';
+  if (stdHr != null && totalKm != null && ascentKm != null && descentKm != null && totalWt > 0) {
+    const C = 1.8 * stdHr + 0.3 * totalKm + 10.0 * ascentKm + 0.6 * descentKm;
+    estCal = Math.round(C * totalWt);
+  }
+  html += '<div class="sec-title">消費カロリーの計算方法</div><div class="card">' +
+    '<p>本アプリでは以下の計算式（コース定数法）を使用しています。</p>' +
+    '<p style="margin:6px 0;padding:6px;background:#f0f0f0;border-radius:4px;font-size:11px;font-family:monospace;">' +
+    'C = 1.8×T + 0.3×D + 10.0×A_up + 0.6×A_down<br>消費カロリー = C × 体重(装備込)' +
+    '</p>' +
+    '<ul>' +
+    '<li>T: 部分標準コースタイム（時間）</li>' +
+    '<li>D: 歩行距離（km）</li>' +
+    '<li>A_up: 累積上昇量（km）</li>' +
+    '<li>A_down: 累積下降量（km）</li>' +
+    '</ul>' +
+    '<p style="font-size:10.5px;color:var(--clr-text-sub);margin-top:4px;">' +
+    '全行程完走時の推計消費カロリー: 約 <b>' + estCal + '</b> kcal' +
+    '</p></div>';
+
+  document.getElementById('tab-info').innerHTML = html;
+}
+
+function renderEmergencyTab(course) {
+  const e = course.emergency || {};
+  const contacts = e.contacts || [];
+  const hospitals = e.hospitals || [];
+  const procedure = e.rescueProcedure || [];
+  const signal = course.signal || {};
+
+  let html = '<div class="emergency-box"><div class="card-title">緊急連絡先</div>';
+  contacts.forEach(function (c) {
+    html += '<div class="emergency-row"><span>' + escapeHtml(c.label) + '</span><a href="tel:' + escapeHtml(c.tel.replace(/-/g, '')) + '">' + escapeHtml(c.tel) + '</a></div>';
+  });
+  html += '</div>';
+
+  if (procedure.length) {
+    html += '<div class="sec-title">救助要請の手順</div><div class="card"><ol style="padding-left:18px;">';
+    procedure.forEach(function (p) {
+      html += '<li style="margin-bottom:6px;">' + escapeHtml(p) + '</li>';
+    });
+    html += '</ol></div>';
+  }
+
+  html += '<div class="sec-title">現在位置情報</div><div class="card">' +
+    '<p>GPS取得時、以下の情報が自動更新されます。救助要請時にこの画面を参照してください。</p>' +
+    '<table class="data-table">' +
+    '<tr><td>緯度</td><td class="num em" id="em-lat">未取得</td></tr>' +
+    '<tr><td>経度</td><td class="num em" id="em-lng">未取得</td></tr>' +
+    '<tr><td>精度</td><td class="num" id="em-acc">—</td></tr>' +
+    '<tr><td>ルート上距離</td><td class="num" id="em-dist">—</td></tr>' +
+    '</table></div>';
+
+  if (hospitals.length) {
+    html += '<div class="sec-title">最寄り医療機関</div><div class="card"><ul>';
+    hospitals.forEach(function (h) {
+      html += '<li><b>' + escapeHtml(h.label) + ':</b> ' + escapeHtml(h.name) + '（' + escapeHtml(h.tel) + '）' + escapeHtml(h.note || '') + '</li>';
+    });
+    html += '</ul></div>';
+  }
+
+  if (signal.rows && signal.rows.length) {
+    html += '<div class="sec-title">携帯電波状況</div><div class="card">' +
+      '<table class="data-table"><thead><tr><th>区間</th>';
+    (signal.headers || []).forEach(function (h) { html += '<th>' + escapeHtml(h) + '</th>'; });
+    html += '</tr></thead><tbody>';
+    signal.rows.forEach(function (r) {
+      html += '<tr><td>' + escapeHtml(r.section) + '</td>';
+      (r.values || []).forEach(function (v) {
+        const cls = r.danger ? ' class="em" style="color:var(--clr-danger)"' : '';
+        html += '<td' + cls + '>' + escapeHtml(v) + '</td>';
+      });
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    if (signal.warning) {
+      html += '<p style="font-size:10.5px;color:var(--clr-danger);margin-top:4px;">' + escapeHtml(signal.warning) + '</p>';
+    }
+    html += '</div>';
+  }
+
+  document.getElementById('tab-emergency').innerHTML = html;
+}
+
+// ===== Map / Chart / Geolocation =====
+function initMapForCourse(course) {
+  const mapEl = document.getElementById('map');
+  // If a previous map exists, remove it
+  if (map) { map.remove(); map = null; }
+  mapEl.innerHTML = '';
+
+  map = L.map('map', { minZoom: 13, maxZoom: 18, zoomControl: false });
+
+  L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
+    attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>'
+  }).addTo(map);
+
+  const featureCollection = {
+    type: 'FeatureCollection',
+    features: [{
+      type: 'Feature',
+      properties: { name: course.name },
+      geometry: course.geometry
+    }]
+  };
+
+  routeLine = L.geoJSON(featureCollection, {
+    style: { color: 'red', dashArray: '5, 5', weight: 3, opacity: 0.8 }
+  }).addTo(map);
+
+  map.fitBounds(routeLine.getBounds());
+
+  routeGeoJSON = turf.lineString(course.geometry.coordinates);
+
+  initElevationChart(course.geometry.coordinates);
+
+  peakMarkers = [];
+  (course.peaks || []).forEach(function (peak) {
+    const marker = L.circleMarker([peak.lat, peak.lng], {
+      radius: 7, color: '#2E7D32', fillColor: '#4CAF50',
+      fillOpacity: 0.7, weight: 2
+    }).addTo(map);
+    marker.bindTooltip(peak.name, { direction: 'top', offset: [0, -8] });
+    peakMarkers.push({ peak: peak, marker: marker });
+  });
+}
+
+function initElevationChart(coordinates) {
+  const canvas = document.getElementById('elevation-chart');
+  if (!canvas) return;
+  if (elevationChart) { elevationChart.destroy(); elevationChart = null; }
+  const ctx = canvas.getContext('2d');
+
+  const distances = [0];
+  const elevations = [coordinates[0][2]];
+  const cumulativeAscentM = [0];
+  const cumulativeDescentM = [0];
+  let totalDist = 0;
+  let cumAsc = 0;
+  let cumDesc = 0;
+  for (let i = 1; i < coordinates.length; i++) {
+    const from = turf.point([coordinates[i - 1][0], coordinates[i - 1][1]]);
+    const to = turf.point([coordinates[i][0], coordinates[i][1]]);
+    totalDist += turf.distance(from, to, { units: 'kilometers' });
+    distances.push(Math.round(totalDist * 100) / 100);
+    elevations.push(coordinates[i][2]);
+    const dE = (coordinates[i][2] || 0) - (coordinates[i - 1][2] || 0);
+    if (dE > 0) cumAsc += dE; else cumDesc += -dE;
+    cumulativeAscentM.push(cumAsc);
+    cumulativeDescentM.push(cumDesc);
+  }
+
+  // Normalize cumulative ascent/descent so end-of-route equals the course's declared
+  // totalAscentM / totalDescentM. Sparse GPS samples tend to over-count tiny up/down
+  // wiggles compared to authoritative figures; the *shape* from samples is preserved
+  // while the magnitude matches the declared summary. Phase 3's denser Overpass+GSI
+  // data should eliminate the need for scaling.
+  const courseSummary = (AppState.currentCourse && AppState.currentCourse.summary) || {};
+  const declaredAscent = Number(courseSummary.totalAscentM) || 0;
+  const declaredDescent = Number(courseSummary.totalDescentM) || 0;
+  const ascScale = (declaredAscent > 0 && cumAsc > 0) ? declaredAscent / cumAsc : 1;
+  const descScale = (declaredDescent > 0 && cumDesc > 0) ? declaredDescent / cumDesc : 1;
+  if (ascScale !== 1) for (let i = 0; i < cumulativeAscentM.length; i++) cumulativeAscentM[i] *= ascScale;
+  if (descScale !== 1) for (let i = 0; i < cumulativeDescentM.length; i++) cumulativeDescentM[i] *= descScale;
+
+  // Cache for accurate metric calculations (Phase 2.5)
+  routeElevationProfile = {
+    distancesKm: distances.slice(),
+    cumulativeAscentM: cumulativeAscentM,
+    cumulativeDescentM: cumulativeDescentM
+  };
+
+  const positionData = new Array(distances.length).fill(null);
+
+  elevationChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: distances,
+      datasets: [
+        {
+          label: '標高 (m)', data: elevations,
+          borderColor: '#8B4513', backgroundColor: 'rgba(139, 69, 19, 0.15)',
+          fill: true, tension: 0.3, pointRadius: 0, borderWidth: 2
+        },
+        {
+          label: '現在地', data: positionData,
+          borderColor: '#2196F3', backgroundColor: '#2196F3',
+          pointRadius: 6, pointStyle: 'triangle', showLine: false, borderWidth: 0
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { title: { display: true, text: '距離 (km)', font: { size: 10 } }, ticks: { font: { size: 9 }, maxTicksLimit: 8 } },
+        y: { title: { display: true, text: '標高 (m)', font: { size: 10 } }, ticks: { font: { size: 9 } } }
+      }
+    }
+  });
+}
+
+// ===== Live tracking =====
+function projectOnRoute(lat, lng) {
+  if (!routeGeoJSON) return;
+  const pt = turf.point([lng, lat]);
+  const snapped = turf.nearestPointOnLine(routeGeoJSON, pt, { units: 'kilometers' });
+  AppState.currentDistanceKm = snapped.properties.location || 0;
+  AppState.lastFixDistFromRouteM = (snapped.properties.dist || 0) * 1000;
+}
+
+// Linear-interpolate cumulative ascent/descent at a given route distance.
+// Phase 2.5 replaces the previous distance-prorated estimate with the actual
+// cumulative climb/descent up to the user's projected position.
+function interpolateElevationAt(distKm) {
+  if (!routeElevationProfile) return { ascentKm: 0, descentKm: 0 };
+  const arr = routeElevationProfile.distancesKm;
+  const asc = routeElevationProfile.cumulativeAscentM;
+  const desc = routeElevationProfile.cumulativeDescentM;
+  if (!arr.length) return { ascentKm: 0, descentKm: 0 };
+  if (distKm <= arr[0]) return { ascentKm: 0, descentKm: 0 };
+  const last = arr.length - 1;
+  if (distKm >= arr[last]) return { ascentKm: asc[last] / 1000, descentKm: desc[last] / 1000 };
+  for (let i = 1; i <= last; i++) {
+    if (arr[i] >= distKm) {
+      const span = arr[i] - arr[i - 1] || 1;
+      const t = (distKm - arr[i - 1]) / span;
+      const a = asc[i - 1] + t * (asc[i] - asc[i - 1]);
+      const d = desc[i - 1] + t * (desc[i] - desc[i - 1]);
+      return { ascentKm: a / 1000, descentKm: d / 1000 };
+    }
+  }
+  return { ascentKm: asc[last] / 1000, descentKm: desc[last] / 1000 };
+}
+
+// Pace correction multiplier: faster walking → higher intensity → more calories.
+// Conservative ±10% cap. Returns 1.0 in the first ~3 minutes (data noisy).
+function paceCorrectionFactor(course) {
+  const elapsedHr = AppState.elapsedTimeMs / 3600000;
+  if (elapsedHr < 0.05) return 1.0;
+  const dist = AppState.currentDistanceKm;
+  if (dist < 0.1) return 1.0;
+  const s = course.summary || {};
+  const totalKm = s.totalDistanceKm;
+  const stdHr = s.standardTimeHr;
+  if (!totalKm || !stdHr) return 1.0;
+  const stdPace = totalKm / stdHr;            // km/h target
+  const curPace = dist / elapsedHr;           // km/h actual
+  const correction = 1 + 0.5 * (curPace / stdPace - 1);
+  return Math.max(0.9, Math.min(1.1, correction));
+}
+
+function computeMetrics() {
+  const course = AppState.currentCourse;
+  if (!course) return 0;
+  const s = course.summary || {};
+  const totalKm = s.totalDistanceKm || 1;
+  const stdHr = s.standardTimeHr || 0;
+
+  // User-customizable weight (Phase 2.5 (c)). Falls back to course defaults.
+  const stored = window.ProgressStore ? ProgressStore.getUser() : { weightKg: null, gearKg: null };
+  const baseWt = (stored && stored.weightKg != null) ? Number(stored.weightKg) : Number(s.userBaseWeightKg) || 0;
+  const gearWt = (stored && stored.gearKg != null) ? Number(stored.gearKg) : Number(s.gearWeightKg) || 0;
+  const totalWt = baseWt + gearWt;
+
+  const dist = AppState.currentDistanceKm;
+
+  // (a) Real cumulative ascent/descent at the projected position
+  const elev = interpolateElevationAt(dist);
+  AppState.currentAscentKm = elev.ascentKm;
+  AppState.currentDescentKm = elev.descentKm;
+
+  // Time component still uses the prorated standard time — we have no better signal
+  // for "how long should this distance take". Pace correction below covers actual exertion.
+  const ratio = totalKm > 0 ? Math.min(dist / totalKm, 1) : 0;
+  const tCurrent = stdHr * ratio;
+
+  const C = 1.8 * tCurrent
+          + 0.3 * dist
+          + 10.0 * AppState.currentAscentKm
+          + 0.6 * AppState.currentDescentKm;
+
+  // (b) Pace correction — modulate calories by actual vs standard pace
+  const pc = paceCorrectionFactor(course);
+  return C * totalWt * pc;
+}
+
 function updateDashboard(calories) {
   document.getElementById('val-dist').textContent = AppState.currentDistanceKm.toFixed(2);
   document.getElementById('val-ascent').textContent = Math.round(AppState.currentAscentKm * 1000);
   document.getElementById('val-cal').textContent = Math.round(calories);
 
-  // ペース計算
   if (AppState.elapsedTimeMs > 0 && AppState.currentDistanceKm > 0.01) {
     const minPerKm = (AppState.elapsedTimeMs / 60000) / AppState.currentDistanceKm;
     const m = Math.floor(minPerKm);
@@ -770,12 +1244,15 @@ function updateDashboard(calories) {
     document.getElementById('val-pace').textContent = m + "'" + String(s).padStart(2, '0') + '"';
   }
 
-  // 緊急タブの位置情報
-  if (AppState.currentLocation) {
-    document.getElementById('em-lat').textContent = AppState.currentLocation.lat.toFixed(6);
-    document.getElementById('em-lng').textContent = AppState.currentLocation.lng.toFixed(6);
-    document.getElementById('em-acc').textContent = Math.round(AppState.currentLocation.accuracy) + 'm';
-    document.getElementById('em-dist').textContent = AppState.currentDistanceKm.toFixed(2) + 'km';
+  const emLat = document.getElementById('em-lat');
+  const emLng = document.getElementById('em-lng');
+  const emAcc = document.getElementById('em-acc');
+  const emDist = document.getElementById('em-dist');
+  if (AppState.currentLocation && emLat) {
+    emLat.textContent = AppState.currentLocation.lat.toFixed(6);
+    emLng.textContent = AppState.currentLocation.lng.toFixed(6);
+    emAcc.textContent = Math.round(AppState.currentLocation.accuracy) + 'm';
+    emDist.textContent = AppState.currentDistanceKm.toFixed(2) + 'km';
   }
 }
 
@@ -792,24 +1269,6 @@ function updateTimer() {
   document.getElementById('val-time').textContent = display;
 }
 
-// ===== セクション8: 計算ロジック =====
-function computeMetrics() {
-  const dist = AppState.currentDistanceKm;
-  const ratio = dist / ROUTE_TOTAL_DISTANCE_KM;
-
-  AppState.currentAscentKm = ROUTE_TOTAL_ASCENT_KM * ratio;
-  AppState.currentDescentKm = ROUTE_TOTAL_DESCENT_KM * ratio;
-
-  const tCurrent = ROUTE_STANDARD_TIME_HR * ratio;
-  const C = 1.8 * tCurrent
-          + 0.3 * dist
-          + 10.0 * AppState.currentAscentKm
-          + 0.6 * AppState.currentDescentKm;
-
-  return C * TOTAL_WEIGHT_KG;
-}
-
-// ===== セクション8-4: Chart.js 縦線更新 =====
 function updateChartPosition() {
   if (!elevationChart) return;
   const datasets = elevationChart.data.datasets;
@@ -830,10 +1289,9 @@ function updateChartPosition() {
   elevationChart.update('none');
 }
 
-// ===== セクション8-5: ピーク接近エフェクト =====
 function checkPeakProximity(lat, lng) {
   const current = turf.point([lng, lat]);
-  peakMarkers.forEach(function(pm) {
+  peakMarkers.forEach(function (pm) {
     const peakPt = turf.point([pm.peak.lng, pm.peak.lat]);
     const dist = turf.distance(current, peakPt, { units: 'meters' });
     pm.marker.setStyle(dist <= 50
@@ -843,15 +1301,6 @@ function checkPeakProximity(lat, lng) {
   });
 }
 
-// ===== セクション8-1: 現在地投影 =====
-function projectOnRoute(lat, lng) {
-  if (!routeGeoJSON) return;
-  const pt = turf.point([lng, lat]);
-  const snapped = turf.nearestPointOnLine(routeGeoJSON, pt, { units: 'kilometers' });
-  AppState.currentDistanceKm = snapped.properties.location || 0;
-}
-
-// ===== セクション7: Geolocation =====
 function onPositionUpdate(pos) {
   const now = Date.now();
   const coords = pos.coords;
@@ -868,41 +1317,98 @@ function onPositionUpdate(pos) {
     timerInterval = setInterval(updateTimer, 1000);
   }
 
-  AppState.currentLocation = {
-    lat: lat, lng: lng,
-    accuracy: coords.accuracy,
-    speed: coords.speed
-  };
+  AppState.currentLocation = { lat: lat, lng: lng, accuracy: coords.accuracy, speed: coords.speed };
   AppState.trajectory.push({ lat: lat, lng: lng, timestamp: now });
 
   if (currentPosMarker) {
     currentPosMarker.setLatLng([lat, lng]);
-  } else {
+  } else if (map) {
     currentPosMarker = L.circleMarker([lat, lng], {
       radius: 8, color: '#2196F3', fillColor: '#2196F3',
       fillOpacity: 0.9, weight: 2
     }).addTo(map);
   }
 
-  const latlngs = AppState.trajectory.map(function(p) { return [p.lat, p.lng]; });
+  const latlngs = AppState.trajectory.map(function (p) { return [p.lat, p.lng]; });
   if (trajectoryPolyline) {
     trajectoryPolyline.setLatLngs(latlngs);
-  } else {
+  } else if (map) {
     trajectoryPolyline = L.polyline(latlngs, {
       color: '#2196F3', weight: 3, opacity: 0.8
     }).addTo(map);
   }
 
   projectOnRoute(lat, lng);
+  recordProgressDelta();
   const calories = computeMetrics();
   updateDashboard(calories);
   updateChartPosition();
   checkPeakProximity(lat, lng);
-  map.panTo([lat, lng]);
+  if (map) map.panTo([lat, lng]);
+
+  // Update the in-progress session snapshot
+  if (AppState.currentCourse) {
+    ProgressStore.updateSession(AppState.currentCourse.id, {
+      distanceKm: AppState.currentDistanceKm,
+      elapsedMs: AppState.elapsedTimeMs,
+      calories: calories,
+      lastDistanceKm: AppState.currentDistanceKm
+    });
+  }
+}
+
+// ===== Progress recording =====
+function recordProgressDelta() {
+  const course = AppState.currentCourse;
+  if (!course) return;
+  const cur = AppState.currentDistanceKm;
+  const prev = AppState.lastRecordedDistanceKm;
+  const totalKm = (course.summary && course.summary.totalDistanceKm) || 0;
+
+  // Only commit forward progress; small jitter is ignored by the store
+  if (cur > prev && (cur - prev) <= 0.5) {
+    const result = ProgressStore.addInterval(course.id, prev, cur, totalKm);
+    if (result && result.added) {
+      AppState.lastRecordedDistanceKm = cur;
+      renderCoveredOnMap(course);
+      if (result.justCompleted) {
+        showToast(course.name + ' 完歩おめでとうございます！', 6000);
+      }
+    } else if (!result.added && result.reason !== 'jump_too_large') {
+      // tiny step: still advance the cursor so we don't accumulate jitter
+      AppState.lastRecordedDistanceKm = cur;
+    }
+  } else if (cur > prev && (cur - prev) > 0.5) {
+    // jump too large — likely tab-resume or GPS warp.
+    // Phase 2.7 will offer route-snap interpolation here. For now, advance the cursor without crediting.
+    AppState.lastRecordedDistanceKm = cur;
+  }
+}
+
+function renderCoveredOnMap(course) {
+  if (!map || !routeGeoJSON) return;
+  if (coveredLayer) { map.removeLayer(coveredLayer); coveredLayer = null; }
+  const stored = ProgressStore.getCourse(course.id);
+  if (!stored || !stored.coveredIntervalsKm.length) return;
+  const layers = [];
+  stored.coveredIntervalsKm.forEach(function (iv) {
+    try {
+      const sliced = turf.lineSliceAlong(routeGeoJSON, iv[0], iv[1], { units: 'kilometers' });
+      const latlngs = sliced.geometry.coordinates.map(function (c) { return [c[1], c[0]]; });
+      if (latlngs.length >= 2) {
+        layers.push(L.polyline(latlngs, { color: '#2E7D32', weight: 5, opacity: 0.85 }));
+      }
+    } catch (e) {
+      console.warn('lineSliceAlong failed', iv, e);
+    }
+  });
+  if (layers.length) {
+    coveredLayer = L.layerGroup(layers).addTo(map);
+  }
 }
 
 function onPositionError(err) {
-  var msgs = {
+  const msgs = {
     1: 'GPS: 位置情報の取得が拒否されました',
     2: 'GPS: 位置情報が利用できません',
     3: 'GPS: 取得がタイムアウトしました'
@@ -910,103 +1416,283 @@ function onPositionError(err) {
   showToast(msgs[err.code] || 'GPS: 不明なエラーが発生しました', 4000);
 }
 
-// ===== 標高プロファイルチャート初期化 =====
-function initElevationChart(coordinates) {
-  const canvas = document.getElementById('elevation-chart');
-  const ctx = canvas.getContext('2d');
-
-  const distances = [0];
-  const elevations = [coordinates[0][2]];
-  let totalDist = 0;
-  for (let i = 1; i < coordinates.length; i++) {
-    const from = turf.point([coordinates[i - 1][0], coordinates[i - 1][1]]);
-    const to = turf.point([coordinates[i][0], coordinates[i][1]]);
-    totalDist += turf.distance(from, to, { units: 'kilometers' });
-    distances.push(Math.round(totalDist * 100) / 100);
-    elevations.push(coordinates[i][2]);
+function startGeolocation() {
+  if (!('geolocation' in navigator)) {
+    showToast('このブラウザはGeolocation APIに対応していません', 5000);
+    return;
   }
-
-  const positionData = new Array(distances.length).fill(null);
-
-  elevationChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: distances,
-      datasets: [
-        {
-          label: '標高 (m)',
-          data: elevations,
-          borderColor: '#8B4513',
-          backgroundColor: 'rgba(139, 69, 19, 0.15)',
-          fill: true, tension: 0.3, pointRadius: 0, borderWidth: 2
-        },
-        {
-          label: '現在地',
-          data: positionData,
-          borderColor: '#2196F3', backgroundColor: '#2196F3',
-          pointRadius: 6, pointStyle: 'triangle', showLine: false, borderWidth: 0
-        }
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false, animation: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { title: { display: true, text: '距離 (km)', font: { size: 10 } }, ticks: { font: { size: 9 }, maxTicksLimit: 8 } },
-        y: { title: { display: true, text: '標高 (m)', font: { size: 10 } }, ticks: { font: { size: 9 } } }
-      }
-    }
+  if (geoWatchId != null) {
+    navigator.geolocation.clearWatch(geoWatchId);
+  }
+  geoWatchId = navigator.geolocation.watchPosition(onPositionUpdate, onPositionError, {
+    enableHighAccuracy: true, timeout: 10000, maximumAge: 0
   });
 }
 
-// ===== セクション6: 空間データ初期化 =====
-async function initApp() {
-  map = L.map('map', { minZoom: 13, maxZoom: 18, zoomControl: false });
-
-  L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
-    attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>'
-  }).addTo(map);
-
+// ===== Wake Lock =====
+async function requestWakeLock() {
+  if (!('wakeLock' in navigator)) {
+    console.warn('Wake Lock API is not supported in this browser.');
+    return;
+  }
   try {
-    const res = await fetch('./route_data.json');
-    const data = await res.json();
-
-    routeLine = L.geoJSON(data, {
-      style: { color: 'red', dashArray: '5, 5', weight: 3, opacity: 0.8 }
-    }).addTo(map);
-
-    map.fitBounds(routeLine.getBounds());
-
-    const feature = data.features[0];
-    routeGeoJSON = turf.lineString(feature.geometry.coordinates);
-
-    initElevationChart(feature.geometry.coordinates);
-
-    PEAKS.forEach(function(peak) {
-      const marker = L.circleMarker([peak.lat, peak.lng], {
-        radius: 7, color: '#2E7D32', fillColor: '#4CAF50',
-        fillOpacity: 0.7, weight: 2
-      }).addTo(map);
-      marker.bindTooltip(peak.name, { direction: 'top', offset: [0, -8] });
-      peakMarkers.push({ peak: peak, marker: marker });
+    wakeLockSentinel = await navigator.wakeLock.request('screen');
+    wakeLockSentinel.addEventListener('release', function () {
+      console.log('Wake Lock released.');
     });
-
   } catch (err) {
-    showToast('ルートデータの読み込みに失敗しました', 5000);
-    console.error('Failed to load route data:', err);
+    console.warn('Wake Lock request failed:', err);
+  }
+}
+
+// ===== Phase 2.7: Route-snap interpolation across visibility gaps =====
+// When the page goes hidden (screen off, app backgrounded), watchPosition is
+// throttled or stopped by the browser. On resume, if the last on-route position
+// AND the new position are both within tolerance, we credit the user with the
+// distance walked between the two route-projections.
+//
+// 5 conditions for automatic interpolation:
+//   1. lastVisibleAnchor is on-route (≤ tolerance)
+//   2. resume fix is on-route (≤ tolerance)
+//   3. resumeDistKm > anchorDistKm (forward only)
+//   4. average speed (resume - anchor) / Δt ≤ 8 km/h (rejects bus / car)
+//   5. Δt ≤ 4 hours (longer gaps treated as a new session)
+const GAP_MAX_HOURS = 4;
+const GAP_MAX_SPEED_KMH = 8;
+
+function captureGapAnchor() {
+  if (!AppState.currentCourse || AppState.currentLocation == null) return;
+  AppState.lastVisibleAnchor = {
+    distanceKm: AppState.currentDistanceKm,
+    lat: AppState.currentLocation.lat,
+    lng: AppState.currentLocation.lng,
+    accuracy: AppState.currentLocation.accuracy,
+    timestamp: Date.now(),
+    distFromRouteM: AppState.lastFixDistFromRouteM
+  };
+}
+
+function attemptGapInterpolation() {
+  const anchor = AppState.lastVisibleAnchor;
+  if (!anchor || !AppState.currentCourse || !navigator.geolocation) return;
+
+  const tolerance = (window.ProgressStore ? ProgressStore.getUser().routeToleranceM : 50) || 50;
+
+  if (anchor.distFromRouteM != null && anchor.distFromRouteM > tolerance) {
+    showToast('画面オフ前にルート外（' + Math.round(anchor.distFromRouteM) + 'm）。補間スキップ', 4000);
+    AppState.lastVisibleAnchor = null;
     return;
   }
 
-  requestWakeLock();
+  navigator.geolocation.getCurrentPosition(function (pos) {
+    if (!AppState.currentCourse || !routeGeoJSON) return;
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    const snapped = turf.nearestPointOnLine(routeGeoJSON, turf.point([lng, lat]), { units: 'kilometers' });
+    const resumeDistKm = snapped.properties.location || 0;
+    const resumeDistFromRouteM = (snapped.properties.dist || 0) * 1000;
+    const dtMs = Date.now() - anchor.timestamp;
+    const dtHr = dtMs / 3600000;
 
-  if ('geolocation' in navigator) {
-    navigator.geolocation.watchPosition(onPositionUpdate, onPositionError, {
-      enableHighAccuracy: true, timeout: 10000, maximumAge: 0
-    });
-  } else {
-    showToast('このブラウザはGeolocation APIに対応していません', 5000);
+    // Condition 2: on-route at resume
+    if (resumeDistFromRouteM > tolerance) {
+      showToast('再開地点がルート外（' + Math.round(resumeDistFromRouteM) + 'm）。補間スキップ', 5000);
+      AppState.lastVisibleAnchor = null;
+      return;
+    }
+    // Condition 5: gap too long
+    if (dtHr > GAP_MAX_HOURS) {
+      showToast('ギャップが ' + dtHr.toFixed(1) + ' 時間と長すぎます。補間スキップ', 5000);
+      AppState.lastVisibleAnchor = null;
+      return;
+    }
+    // Condition 3: forward only
+    const deltaKm = resumeDistKm - anchor.distanceKm;
+    if (deltaKm <= 0.005) {
+      AppState.lastVisibleAnchor = null;
+      return;
+    }
+    // Condition 4: speed sanity
+    const speedKmh = dtHr > 0 ? deltaKm / dtHr : Infinity;
+    if (speedKmh > GAP_MAX_SPEED_KMH) {
+      showToast('移動が速すぎます（' + speedKmh.toFixed(1) + 'km/h）。バス・電車を疑い補間スキップ', 6000);
+      AppState.lastVisibleAnchor = null;
+      return;
+    }
+
+    // All 5 conditions satisfied — credit interpolated interval
+    const totalKm = (AppState.currentCourse.summary && AppState.currentCourse.summary.totalDistanceKm) || 0;
+    // ProgressStore.addInterval normally rejects deltas > 0.5 km. Bypass via direct call.
+    if (window.ProgressStore && AppState.currentCourse) {
+      // Manually inject the interval through the store, walking around the per-call jump cap.
+      const id = AppState.currentCourse.id;
+      const c = ProgressStore.getCourse(id) || (ProgressStore.startSession(id), ProgressStore.getCourse(id));
+      if (c) {
+        c.coveredIntervalsKm = ProgressStore._unionInterval(c.coveredIntervalsKm, anchor.distanceKm, resumeDistKm);
+        c.totalCoveredKm = ProgressStore._intervalsTotal(c.coveredIntervalsKm);
+        if (!c.completedAt && totalKm && c.totalCoveredKm >= totalKm * ProgressStore.COMPLETION_THRESHOLD) {
+          c.completedAt = new Date().toISOString();
+          showToast(AppState.currentCourse.name + ' 完歩おめでとうございます！', 6000);
+        }
+        ProgressStore.flush();
+      }
+      AppState.lastRecordedDistanceKm = resumeDistKm;
+      AppState.currentDistanceKm = resumeDistKm;
+      renderCoveredOnMap(AppState.currentCourse);
+      showToast('画面オフ中の ' + deltaKm.toFixed(2) + ' km を補間しました（' + dtHr.toFixed(1) + 'h, ' + speedKmh.toFixed(1) + 'km/h）', 5000);
+    }
+    AppState.lastVisibleAnchor = null;
+  }, function () {
+    // GPS getCurrentPosition error — keep anchor for the next attempt
+  }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+}
+
+document.addEventListener('visibilitychange', function () {
+  if (!AppState.currentCourse) return;
+  if (document.visibilityState === 'hidden') {
+    captureGapAnchor();
+  } else if (document.visibilityState === 'visible') {
+    // Always-on: keep Wake Lock chained. Eco: don't request, but try to interpolate the gap.
+    const mode = (window.ProgressStore ? ProgressStore.getUser().powerMode : 'eco') || 'eco';
+    if (mode === 'always-on') requestWakeLock();
+    if (AppState.lastVisibleAnchor) attemptGapInterpolation();
+  }
+});
+
+// ===== Tab switching =====
+document.getElementById('tab-bar').addEventListener('click', function (e) {
+  const btn = e.target.closest('.tab-btn');
+  if (!btn) return;
+  document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
+  document.querySelectorAll('.tab-page').forEach(function (p) { p.classList.remove('active'); });
+  btn.classList.add('active');
+  document.getElementById(btn.dataset.tab).classList.add('active');
+});
+
+// CP "show on map" delegation (replaces inline onclick)
+document.getElementById('tab-checkpoints').addEventListener('click', function (e) {
+  const btn = e.target.closest('.cp-nav-btn');
+  if (!btn) return;
+  const lat = parseFloat(btn.dataset.lat);
+  const lng = parseFloat(btn.dataset.lng);
+  if (map && !isNaN(lat) && !isNaN(lng)) {
+    map.flyTo([lat, lng], 16, { duration: 0.8 });
+    document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
+    document.querySelectorAll('.tab-page').forEach(function (p) { p.classList.remove('active'); });
+    document.querySelector('[data-tab="tab-elevation"]').classList.add('active');
+    document.getElementById('tab-elevation').classList.add('active');
+  }
+});
+
+// Header buttons
+document.getElementById('back-to-landing').addEventListener('click', backToLanding);
+document.getElementById('course-switch').addEventListener('click', backToLanding);
+
+// Data controls (Export / Import / Reset)
+document.getElementById('btn-export').addEventListener('click', function () {
+  const json = ProgressStore.exportJson();
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  a.download = 'ktp-progress-' + today + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+});
+
+document.getElementById('btn-import').addEventListener('click', function () {
+  document.getElementById('import-file').click();
+});
+
+document.getElementById('import-file').addEventListener('change', function (e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function (ev) {
+    const result = ProgressStore.importJson(ev.target.result);
+    if (!result.ok) {
+      const reason = result.reason === 'schema_mismatch' ? 'スキーマが一致しません' :
+                     result.reason === 'invalid_json' ? 'JSONが不正です' : '読み込みに失敗しました';
+      showToast('インポート失敗: ' + reason, 5000);
+    } else {
+      showToast('インポート完了', 3000);
+      renderLanding(AppState.coursesIndex);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+document.getElementById('btn-reset').addEventListener('click', function () {
+  if (!confirm('全コースの歩行記録を消去します。この操作は取り消せません。\nよろしいですか？')) return;
+  ProgressStore.reset();
+  renderLanding(AppState.coursesIndex);
+  showToast('歩行記録をリセットしました', 3000);
+});
+
+// User settings inputs (Phase 2.5 + 2.7)
+function syncUserInputs() {
+  const u = window.ProgressStore ? ProgressStore.getUser() : {};
+  const wEl = document.getElementById('user-weight');
+  const gEl = document.getElementById('user-gear');
+  const mEl = document.getElementById('user-power-mode');
+  const tEl = document.getElementById('user-tolerance');
+  if (u.weightKg != null) wEl.value = u.weightKg;
+  if (u.gearKg != null) gEl.value = u.gearKg;
+  if (u.powerMode) mEl.value = u.powerMode;
+  if (u.routeToleranceM) tEl.value = String(u.routeToleranceM);
+}
+// Backwards compat alias for any earlier reference
+const syncUserWeightInputs = syncUserInputs;
+document.getElementById('user-weight').addEventListener('change', function (e) {
+  const v = parseFloat(e.target.value);
+  if (!isFinite(v) || v < 20 || v > 200) { syncUserInputs(); return; }
+  ProgressStore.setUser({ weightKg: v });
+});
+document.getElementById('user-gear').addEventListener('change', function (e) {
+  const v = parseFloat(e.target.value);
+  if (!isFinite(v) || v < 0 || v > 50) { syncUserInputs(); return; }
+  ProgressStore.setUser({ gearKg: v });
+});
+document.getElementById('user-power-mode').addEventListener('change', function (e) {
+  ProgressStore.setUser({ powerMode: e.target.value });
+});
+document.getElementById('user-tolerance').addEventListener('change', function (e) {
+  ProgressStore.setUser({ routeToleranceM: Number(e.target.value) });
+});
+
+// ===== App init =====
+async function initApp() {
+  // Initialize persistent progress store
+  if (window.ProgressStore) ProgressStore.init();
+
+  try {
+    const res = await fetch(COURSES_INDEX_PATH);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    AppState.coursesIndex = await res.json();
+  } catch (err) {
+    console.error('Failed to load courses index:', err);
+    showToast('コース一覧の読み込みに失敗しました', 5000);
+    return;
+  }
+
+  renderLanding(AppState.coursesIndex);
+  syncUserWeightInputs();
+
+  // Restore from URL hash (e.g., #course=nishiyama)
+  const hashMatch = location.hash.match(/^#course=([\w-]+)$/);
+  if (hashMatch) {
+    selectCourse(hashMatch[1]);
   }
 }
+
+// Final safety: flush any pending writes when the page is hidden
+window.addEventListener('pagehide', function () {
+  if (window.ProgressStore) ProgressStore.flush();
+});
 
 initApp();
 </script>
