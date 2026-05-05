@@ -17,9 +17,13 @@
   const API_URL = 'https://api.open-meteo.com/v1/forecast';
 
   function todayDateStr(d) {
+    // dt.getTime() is always UTC ms. To read the JST calendar date, just add
+    // JST's +9h offset and read the UTC string. Subtracting getTimezoneOffset()
+    // would double-count the offset on a JST-configured host (15:00+ JST flips
+    // to next day), which was the bug reviewer @gemini-code-assist caught.
     const dt = d || new Date();
-    const tz = 9 * 60;
-    const local = new Date(dt.getTime() + (tz - dt.getTimezoneOffset()) * 60000);
+    const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+    const local = new Date(dt.getTime() + JST_OFFSET_MS);
     return local.toISOString().slice(0, 10); // YYYY-MM-DD in JST
   }
 
@@ -66,6 +70,19 @@
     return fetch(url, { signal: ctl.signal }).finally(function () { clearTimeout(t); });
   }
 
+  function evictStaleCache(currentKey) {
+    // Remove ktp.weather.* entries whose key isn't for today (and isn't the one
+    // we're about to write) so stored entries don't accumulate over months.
+    try {
+      const drop = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.indexOf(CACHE_PREFIX) === 0 && k !== currentKey) drop.push(k);
+      }
+      drop.forEach(function (k) { localStorage.removeItem(k); });
+    } catch (e) { /* ignore */ }
+  }
+
   async function fetchToday(lat, lng) {
     const date = todayDateStr();
     const key = cacheKey(date, lat, lng);
@@ -84,7 +101,10 @@
     const json = await res.json();
     const data = parseOpenMeteo(json);
     data._fetchedAt = Date.now();
-    try { localStorage.setItem(key, JSON.stringify(data)); } catch (e) { /* quota */ }
+    try {
+      localStorage.setItem(key, JSON.stringify(data));
+      evictStaleCache(key);
+    } catch (e) { /* quota */ }
     return data;
   }
 
@@ -163,7 +183,10 @@
       warnHtml;
   }
 
+  // Prefer the shared util defined by index.html; keep a local fallback in case
+  // weather.js is loaded by a test page in isolation.
   function escapeHtml(s) {
+    if (window.KtpUtil && window.KtpUtil.escapeHtml) return window.KtpUtil.escapeHtml(s);
     if (s == null) return '';
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');

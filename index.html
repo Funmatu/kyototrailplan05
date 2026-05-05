@@ -463,12 +463,16 @@ let timerInterval = null;
 let geoWatchId = null;
 
 // ===== Utilities =====
+// escapeHtml is exposed on window so external modules (js/weather.js etc.) can
+// share the same implementation without duplicating it.
 function escapeHtml(s) {
   if (s == null) return '';
   return String(s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
+window.KtpUtil = window.KtpUtil || {};
+window.KtpUtil.escapeHtml = escapeHtml;
 
 function difficultyStars(n) {
   const k = Math.max(0, Math.min(5, Number(n) || 0));
@@ -1734,13 +1738,18 @@ async function initApp() {
 const WEATHER_LAT = 35.05;
 const WEATHER_LNG = 135.75;
 
-let _weatherCache = null;
+// Cache the in-flight Promise (not the resolved value) so concurrent callers
+// share a single network request. On error the promise is cleared so subsequent
+// renders can retry rather than being permanently stuck.
+let _weatherPromise = null;
 async function refreshWeatherCard(el) {
   if (!el || !window.Weather) return;
   try {
-    if (!_weatherCache) _weatherCache = await Weather.fetchToday(WEATHER_LAT, WEATHER_LNG);
-    Weather.renderCard(el, _weatherCache);
+    if (!_weatherPromise) _weatherPromise = Weather.fetchToday(WEATHER_LAT, WEATHER_LNG);
+    const data = await _weatherPromise;
+    Weather.renderCard(el, data);
   } catch (err) {
+    _weatherPromise = null;
     console.info('weather fetch failed (non-fatal):', err && err.message);
     el.hidden = true;
   }
