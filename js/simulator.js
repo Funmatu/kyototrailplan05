@@ -35,15 +35,10 @@
   let _state = null;
 
   function parseUrlParams(qs) {
-    const params = {};
-    const search = (qs || location.search || '').replace(/^\?/, '');
-    if (!search) return params;
-    search.split('&').forEach(function (pair) {
-      const i = pair.indexOf('=');
-      if (i < 0) return;
-      params[decodeURIComponent(pair.slice(0, i))] = decodeURIComponent(pair.slice(i + 1));
-    });
-    return params;
+    const search = qs != null ? qs : location.search;
+    const out = {};
+    new URLSearchParams(search).forEach(function (v, k) { out[k] = v; });
+    return out;
   }
 
   function detectMode() {
@@ -101,6 +96,9 @@
     if (typeof turf === 'undefined') throw new Error('Simulator requires turf.js');
     const line = turf.lineString(course.geometry.coordinates);
     const totalKm = (course.summary && course.summary.totalDistanceKm) || 0;
+    // Use time-based stride (Date.now() delta per tick) instead of nominal
+    // mode.intervalMs so a slow event loop doesn't drift simulated distance
+    // away from real elapsed time.
     const _state = {
       mode: 'sim',
       course: course,
@@ -108,58 +106,69 @@
       line: line,
       distanceKm: mode.startKm,
       totalKm: totalKm,
-      successCb: null,
-      errorCb: null,
+      watchers: new Map(),    // watchId → { success, error }
+      nextWatchId: 1,
       timerId: null,
+      lastTickAt: 0,
       lastPos: null
     };
 
-    function tick() {
-      const strideKm = mode.speed * HIKE_PACE_KMH * (mode.intervalMs / 3600000);
-      _state.distanceKm += strideKm;
-      const reached = _state.distanceKm >= _state.totalKm;
+    function buildCurrentPosition() {
       const dist = Math.min(_state.distanceKm, _state.totalKm);
       const pt = turf.along(_state.line, dist, { units: 'kilometers' });
       const [lng, lat] = pt.geometry.coordinates;
       const j = withJitter(lat, lng, mode.jitterM);
       const heading = _state.lastPos ? bearingDeg([_state.lastPos.lng, _state.lastPos.lat], [j.lng, j.lat]) : null;
       const speedMs = mode.speed * HIKE_PACE_KMH / 3.6;
-      const pos = buildPosition(j.lat, j.lng, 5, speedMs, heading);
       _state.lastPos = j;
-      if (_state.successCb) _state.successCb(pos);
+      return buildPosition(j.lat, j.lng, 5, speedMs, heading);
+    }
+
+    function tick() {
+      const now = Date.now();
+      const elapsedMs = _state.lastTickAt ? (now - _state.lastTickAt) : mode.intervalMs;
+      _state.lastTickAt = now;
+      const strideKm = mode.speed * HIKE_PACE_KMH * (elapsedMs / 3600000);
+      _state.distanceKm += strideKm;
+      const reached = _state.distanceKm >= _state.totalKm;
+      const pos = buildCurrentPosition();
+      _state.watchers.forEach(function (w) {
+        try { w.success(pos); } catch (_) { /* ignore listener errors */ }
+      });
       if (reached && _state.timerId) {
         clearInterval(_state.timerId);
         _state.timerId = null;
       }
     }
 
+    function ensureTimer() {
+      if (_state.timerId || _state.watchers.size === 0) return;
+      _state.lastTickAt = Date.now();
+      // Fire an immediate fix so the app can begin rendering
+      setTimeout(tick, 50);
+      _state.timerId = setInterval(tick, mode.intervalMs);
+    }
+
     return {
       _state: _state,
       api: {
         watchPosition: function (success, error /*, opts */) {
-          _state.successCb = success;
-          _state.errorCb = error;
-          // Fire an immediate fix so the app can begin rendering
-          setTimeout(tick, 50);
-          if (_state.timerId) clearInterval(_state.timerId);
-          _state.timerId = setInterval(tick, mode.intervalMs);
-          return 1;
+          const id = _state.nextWatchId++;
+          _state.watchers.set(id, { success: success, error: error });
+          ensureTimer();
+          return id;
         },
-        clearWatch: function () {
-          if (_state.timerId) { clearInterval(_state.timerId); _state.timerId = null; }
-          _state.successCb = null;
-          _state.errorCb = null;
+        clearWatch: function (id) {
+          if (id != null) _state.watchers.delete(id);
+          if (_state.watchers.size === 0 && _state.timerId) {
+            clearInterval(_state.timerId);
+            _state.timerId = null;
+            _state.lastTickAt = 0;
+          }
         },
         getCurrentPosition: function (success, error /*, opts */) {
-          try {
-            const dist = Math.min(_state.distanceKm, _state.totalKm);
-            const pt = turf.along(_state.line, dist, { units: 'kilometers' });
-            const [lng, lat] = pt.geometry.coordinates;
-            const j = withJitter(lat, lng, mode.jitterM);
-            success(buildPosition(j.lat, j.lng, 5));
-          } catch (e) {
-            if (error) error({ code: 2, message: 'simulator: ' + e.message });
-          }
+          try { success(buildCurrentPosition()); }
+          catch (e) { if (error) error({ code: 2, message: 'simulator: ' + e.message }); }
         }
       }
     };
@@ -174,15 +183,16 @@
   function startShadow(course, mode, origGeo) {
     if (!origGeo) throw new Error('Shadow mode needs the original navigator.geolocation');
     const startCoord = course.geometry.coordinates[0]; // [lng, lat, ele]
+    // Multi-watcher state. realOrigin is shared across watchers so concurrent
+    // listeners see a consistent translated position.
     const _state = {
       mode: 'shadow',
       course: course,
       modeOpts: mode,
       realOrigin: null,
-      successCb: null,
-      errorCb: null,
-      watchId: null,
-      lastPos: null
+      lastPos: null,
+      watchers: new Map(),    // simulatorWatchId → { realWatchId, success, error }
+      nextWatchId: 1
     };
 
     function translate(realPos) {
@@ -204,19 +214,20 @@
       _state: _state,
       api: {
         watchPosition: function (success, error, opts) {
-          _state.successCb = success;
-          _state.errorCb = error;
-          _state.watchId = origGeo.watchPosition(function (realPos) {
+          const id = _state.nextWatchId++;
+          const realId = origGeo.watchPosition(function (realPos) {
             try { success(translate(realPos)); }
             catch (e) { if (error) error({ code: 2, message: 'shadow: ' + e.message }); }
           }, error, opts);
-          return _state.watchId;
+          _state.watchers.set(id, { realWatchId: realId, success: success, error: error });
+          return id;
         },
-        clearWatch: function () {
-          if (_state.watchId != null) origGeo.clearWatch(_state.watchId);
-          _state.watchId = null;
-          _state.successCb = null;
-          _state.errorCb = null;
+        clearWatch: function (id) {
+          if (id == null) return;
+          const entry = _state.watchers.get(id);
+          if (!entry) return;
+          origGeo.clearWatch(entry.realWatchId);
+          _state.watchers.delete(id);
         },
         getCurrentPosition: function (success, error, opts) {
           origGeo.getCurrentPosition(function (realPos) {
@@ -253,7 +264,16 @@
 
   function stop() {
     if (!_state || !_state.active) return;
-    try { _state.impl.api.clearWatch(); } catch (e) { /* ignore */ }
+    // Tear down every active watcher: collect the IDs first so iteration is
+    // not affected by clearWatch's mutation of the underlying Map.
+    try {
+      const inner = _state.impl._state;
+      if (inner && inner.watchers) {
+        Array.from(inner.watchers.keys()).forEach(function (id) {
+          _state.impl.api.clearWatch(id);
+        });
+      }
+    } catch (e) { /* ignore */ }
     Object.defineProperty(navigator, 'geolocation', {
       configurable: true,
       value: _state.origGeo

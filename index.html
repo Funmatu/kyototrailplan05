@@ -1784,9 +1784,13 @@ function showSimBanner(mode) {
   if (!el) return;
   document.body.classList.add('sim-active');
   el.classList.remove('hidden');
+  // Course ID comes from the URL query string (untrusted), so escape every
+  // dynamic field before flowing into innerHTML to prevent reflected XSS.
   const detail = mode.shadow
-    ? 'shadow=1 / 実GPS→' + mode.courseId + ' に投影'
-    : 'speed=' + mode.speed + 'x / interval=' + mode.intervalMs + 'ms / jitter=' + mode.jitterM + 'm';
+    ? 'shadow=1 / 実GPS→' + escapeHtml(mode.courseId) + ' に投影'
+    : 'speed=' + escapeHtml(String(mode.speed)) + 'x / interval=' +
+      escapeHtml(String(mode.intervalMs)) + 'ms / jitter=' +
+      escapeHtml(String(mode.jitterM)) + 'm';
   el.innerHTML = '🧪 シミュレータ実行中 <span class="sim-detail">(' + detail + ')</span>';
 }
 
