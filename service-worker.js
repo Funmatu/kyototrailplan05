@@ -34,10 +34,10 @@ const APP_SHELL = [
   './js/simulator.js',
   './data/courses/index.json',
   './data/courses/higashiyama.json',
+  './data/courses/keihoku.json',
   './data/courses/kitayama-east.json',
   './data/courses/kitayama-west.json',
   './data/courses/nishiyama.json',
-  './data/courses/keihoku.json',
   './route_data.json'
 ];
 
