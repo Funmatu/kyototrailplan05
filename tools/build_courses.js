@@ -622,5 +622,10 @@ if (require.main === module) {
 
 module.exports = {
   parseFromTo, checkpointsFromSegments, cumulativeAscentDescent,
-  totalDistanceKm, haversineKm, findPeaks
+  totalDistanceKm, haversineKm, findPeaks,
+  // Phase 8: re-export helpers and shared content templates so
+  // tools/build_courses_ibuki.js can produce schema-identical course JSONs.
+  fetchElevation, sleep, GSI_DELAY_MS,
+  SHARED_GEAR, SHARED_EMERGENCY_CONTACTS, SHARED_RESCUE_PROCEDURE,
+  SHARED_WEATHER_CRITERIA, SHARED_MARKING
 };

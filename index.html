@@ -834,7 +834,8 @@ function renderItineraryTab(course) {
   if (escapes.length) {
     html += '<div class="sec-title">エスケープルート</div><div class="card"><ul>';
     escapes.forEach(function (e) {
-      html += '<li><b>' + escapeHtml(e.atCheckpoint) + '（' + e.atKm.toFixed(1) + 'km地点）:</b> ' + escapeHtml(e.description) + '</li>';
+      const km = (typeof e.atKm === 'number' && Number.isFinite(e.atKm)) ? '（' + e.atKm.toFixed(1) + 'km地点）' : '';
+      html += '<li><b>' + escapeHtml(e.atCheckpoint || '') + km + ':</b> ' + escapeHtml(e.description || '') + '</li>';
     });
     html += '</ul></div>';
   }
