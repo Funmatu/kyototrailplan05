@@ -11,7 +11,12 @@
 
 'use strict';
 
-const VERSION = 'ktp-shell-v1';
+// v2: Phase 8 added keihoku.json + rewrote kitayama-west.json (gap fill).
+//     The old v1 cache holds the pre-Phase-8 index.json (keihoku.implemented:false)
+//     and the 17.61km kitayama-west, so returning users see "京北 準備中" forever
+//     until v1 is invalidated. Bumping VERSION triggers the activate-handler
+//     cache-purge below.
+const VERSION = 'ktp-shell-v2';
 const RUNTIME_TILES = 'ktp-gsi-tiles';
 const RUNTIME_API = 'ktp-api';
 
@@ -29,6 +34,7 @@ const APP_SHELL = [
   './js/simulator.js',
   './data/courses/index.json',
   './data/courses/higashiyama.json',
+  './data/courses/keihoku.json',
   './data/courses/kitayama-east.json',
   './data/courses/kitayama-west.json',
   './data/courses/nishiyama.json',
