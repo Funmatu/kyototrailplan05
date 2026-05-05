@@ -99,10 +99,13 @@ test.describe('Cross-day persistence', () => {
     const persistedKm = parseFloat((cardText || '').replace(/km.*/, ''));
     expect(persistedKm).toBeGreaterThanOrEqual(distAfterFirstWalk - 0.05);
 
-    // Reload — fresh page must still see the same progress.
+    // Reload — fresh page must still see the same progress. Use toHaveText so
+    // Playwright auto-retries until the post-init render lands (avoids a race
+    // against initApp).
     await page.reload();
-    const cardTextAfterReload = await page.locator('.course-card.implemented').filter({ hasText: '西山コース' })
-      .locator('.course-card-progress span').textContent();
-    expect(cardTextAfterReload).toBe(cardText);
+    await expect(
+      page.locator('.course-card.implemented').filter({ hasText: '西山コース' })
+        .locator('.course-card-progress span')
+    ).toHaveText(cardText || '');
   });
 });

@@ -41,12 +41,19 @@ module.exports = defineConfig({
   },
   projects: [
     {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'], viewport: { width: 414, height: 896 } }
+      // The app is mobile-first; use Playwright's mobile device emulation so
+      // touch / user-agent / DPR / viewport all match a real phone session.
+      // Pixel 5 (Android Chrome) keeps us on chromium — no extra webkit install
+      // needed (iPhone 11 would require `npx playwright install webkit`).
+      name: 'mobile-chrome',
+      use: { ...devices['Pixel 5'] }
     }
   ],
   webServer: useExternalServer ? undefined : {
-    command: 'python3 -m http.server 8081',
+    // npx http-server is provided via devDependencies, removing the python3
+    // host dependency. Disable the index page (-d) and CORS headers to mirror
+    // GitHub Pages behavior.
+    command: 'npx http-server . -p 8081 -c-1 --silent',
     cwd: path.resolve(__dirname, '../..'),
     port: 8081,
     timeout: 30_000,
