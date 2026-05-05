@@ -16,3 +16,8 @@ Thumbs.db
 node_modules/
 npm-debug.log
 yarn-error.log
+
+# Playwright artifacts (Phase 6)
+playwright-report/
+test-results/
+playwright/.cache/
