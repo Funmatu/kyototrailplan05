@@ -10,6 +10,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
 <script src="./js/progressStore.js"></script>
 <script src="./js/weather.js"></script>
+<script src="./js/simulator.js"></script>
 <style>
 :root {
   --clr-primary: #2E7D32;
@@ -110,6 +111,20 @@ body, html { height: 100%; width: 100vw; overflow: hidden; background: #000; fon
   margin-top: 6px; padding: 6px 10px; background: #FFF8E1; border: 1px solid #F9A825;
   border-radius: 6px; color: #E65100; font-size: 12px; font-weight: 700;
 }
+
+/* Simulator banner (Phase 4) */
+#sim-banner {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  background: rgba(255, 152, 0, 0.95); color: #fff;
+  font-size: 11px; font-weight: 700; text-align: center;
+  padding: 4px 8px; font-family: var(--font);
+  box-shadow: 0 2px 6px rgba(0,0,0,.2);
+}
+#sim-banner.hidden { display: none; }
+#sim-banner .sim-detail { font-weight: 400; opacity: 0.9; margin-left: 6px; }
+body.sim-active #course-header { top: 24px; }
+body.sim-active #map { top: calc(var(--hdr-h) + 24px); }
+body.sim-active #landing { padding-top: 44px; }
 
 /* Weather card (Open-Meteo) */
 .weather-card {
@@ -423,6 +438,7 @@ body, html { height: 100%; width: 100vw; overflow: hidden; background: #000; fon
   </div><!-- /panel -->
 </div><!-- /course-view -->
 
+<div id="sim-banner" class="hidden"></div>
 <div id="toast"></div>
 
 <script>
@@ -669,6 +685,15 @@ function enterCourseView(course) {
 }
 
 function backToLanding() {
+  // Stop the simulator (Phase 4) so subsequent course selections use the real
+  // navigator.geolocation again.
+  if (window.Simulator && Simulator.isActive()) {
+    Simulator.stop();
+    document.body.classList.remove('sim-active');
+    const banner = document.getElementById('sim-banner');
+    if (banner) banner.classList.add('hidden');
+  }
+
   // Finalize the current session in the persistent store
   if (AppState.currentCourse) {
     ProgressStore.updateSession(AppState.currentCourse.id, {
@@ -1726,11 +1751,43 @@ async function initApp() {
   // Background-fetch today's weather (Phase 3.5). Failures are silent — UI just stays empty.
   refreshWeatherCard(document.getElementById('landing-weather'));
 
+  // Phase 4: simulator mode (?sim=<id>&speed=N&shadow=0|1) takes precedence over hash.
+  const simMode = window.Simulator ? Simulator.detectMode() : null;
+  if (simMode) {
+    const meta = AppState.coursesIndex.courses.find(function (c) { return c.id === simMode.courseId; });
+    if (meta && meta.implemented) {
+      try {
+        const res = await fetch('./data/courses/' + meta.dataPath.replace(/^\.\//, ''));
+        const course = await res.json();
+        Simulator.start(course, simMode);
+        showSimBanner(simMode);
+        enterCourseView(course);
+        return;
+      } catch (err) {
+        console.warn('simulator startup failed:', err);
+        showToast('シミュレータの開始に失敗しました', 4000);
+      }
+    } else {
+      showToast('?sim=' + simMode.courseId + ' は未実装または存在しません', 4000);
+    }
+  }
+
   // Restore from URL hash (e.g., #course=nishiyama)
   const hashMatch = location.hash.match(/^#course=([\w-]+)$/);
   if (hashMatch) {
     selectCourse(hashMatch[1]);
   }
+}
+
+function showSimBanner(mode) {
+  const el = document.getElementById('sim-banner');
+  if (!el) return;
+  document.body.classList.add('sim-active');
+  el.classList.remove('hidden');
+  const detail = mode.shadow
+    ? 'shadow=1 / 実GPS→' + mode.courseId + ' に投影'
+    : 'speed=' + mode.speed + 'x / interval=' + mode.intervalMs + 'ms / jitter=' + mode.jitterM + 'm';
+  el.innerHTML = '🧪 シミュレータ実行中 <span class="sim-detail">(' + detail + ')</span>';
 }
 
 // ===== Phase 3.5: Weather card =====
