@@ -118,16 +118,6 @@ async function fetchElevation(lat, lon) {
 
 // ---------- geometry helpers ----------
 
-function strideSample(coords, target) {
-  if (coords.length <= target) return coords.slice();
-  const stride = Math.max(1, Math.floor(coords.length / target));
-  const out = [];
-  for (let i = 0; i < coords.length; i += stride) out.push(coords[i]);
-  // Always keep the very last point
-  if (out[out.length - 1] !== coords[coords.length - 1]) out.push(coords[coords.length - 1]);
-  return out;
-}
-
 function haversineKm(a, b) {
   const R = 6371;
   const toRad = d => d * Math.PI / 180;
@@ -479,16 +469,50 @@ async function buildCourse(courseId, opts) {
     };
   });
 
-  // 6. Segments table
+  // 6. Segments table — derive per-segment ascent/descent from sampled elevations.
+  // For each OSM segment, find the nearest sampled coords to its start/end and
+  // compute the elevation delta along the slice.
+  function nearestIndex(latlng) {
+    let best = 0, bestKm = Infinity;
+    for (let i = 0; i < sampled.length; i++) {
+      const d = haversineKm([latlng[1], latlng[0]], [sampled[i][0], sampled[i][1]]);
+      if (d < bestKm) { bestKm = d; best = i; }
+    }
+    return best;
+  }
+  function segmentAscentDescent(startIdx, endIdx) {
+    const lo = Math.min(startIdx, endIdx);
+    const hi = Math.max(startIdx, endIdx);
+    let asc = 0, desc = 0;
+    for (let i = lo + 1; i <= hi; i++) {
+      const dE = (sampled[i][2] || 0) - (sampled[i - 1][2] || 0);
+      if (dE > 0) asc += dE; else desc += -dE;
+    }
+    return startIdx <= endIdx ? { asc, desc } : { asc: desc, desc: asc };
+  }
   const segments = raw.segments.map(s => {
     const fromTo = parseFromTo(s.description);
     const distKm = s.distanceTag ? Number(s.distanceTag) : null;
+    let ascentM = null, descentM = null, stdMinutes = null;
+    if (s.startLatLng && s.endLatLng) {
+      const si = nearestIndex(s.startLatLng);
+      const ei = nearestIndex(s.endLatLng);
+      const ad = segmentAscentDescent(si, ei);
+      ascentM = Math.round(ad.asc);
+      descentM = Math.round(ad.desc);
+    }
+    if (distKm != null) {
+      // Naismith-flavored: 24 min/km flat + 1 min per 10m of net ascent
+      stdMinutes = Math.round(distKm * 24 + (ascentM || 0) * 0.1);
+    }
     return {
       from: fromTo.from || s.name,
       to: fromTo.to || '',
       distanceKm: distKm,
-      deltaElevationM: null,
-      stdMinutes: distKm ? Math.round(distKm * 24 + 0 * 0.1) : null,
+      deltaElevationM: ascentM != null && descentM != null ? ascentM - descentM : null,
+      ascentM: ascentM,
+      descentM: descentM,
+      stdMinutes: stdMinutes,
       difficulty: 2,
       surface: '京都一周トレイル整備路'
     };
@@ -566,7 +590,6 @@ async function buildCourse(courseId, opts) {
     gear: SHARED_GEAR,
     _provenance: {
       source: 'OpenStreetMap (ODbL)',
-      generatedAt: new Date().toISOString(),
       generator: 'tools/build_courses.js',
       osmRange: meta.osmRange,
       coverageNote: meta.osmCoverageNote,
@@ -598,6 +621,6 @@ if (require.main === module) {
 }
 
 module.exports = {
-  parseFromTo, checkpointsFromSegments, strideSample, cumulativeAscentDescent,
+  parseFromTo, checkpointsFromSegments, cumulativeAscentDescent,
   totalDistanceKm, haversineKm, findPeaks
 };

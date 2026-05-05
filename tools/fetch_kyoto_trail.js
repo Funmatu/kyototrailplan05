@@ -379,7 +379,6 @@ out skel qt;`.trim();
 
     const out = {
       type: 'FeatureCollection',
-      generated: new Date().toISOString(),
       generator: 'tools/fetch_kyoto_trail.js',
       attribution: '© OpenStreetMap contributors (ODbL)',
       courseId: courseId,
