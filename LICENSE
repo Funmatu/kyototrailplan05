@@ -24,8 +24,12 @@ SOFTWARE.
 
 Third-party data attribution:
 
-- Route geometry: © OpenStreetMap contributors, distributed under the Open
-  Database License (ODbL) v1.0. See https://opendatacommons.org/licenses/odbl/
+- Route geometry (4 OSM-mapped courses): © OpenStreetMap contributors,
+  distributed under the Open Database License (ODbL) v1.0.
+  See https://opendatacommons.org/licenses/odbl/
+- Route geometry (京北 course; 北山西部 marker 70-90 splice): GPS coordinate
+  data from ibuki.run, treated as CC0 1.0 Universal per ibuki.run Terms of
+  Service §6.3. See data/courses/raw/CREDITS.md for details.
 - Elevation data: 国土地理院 (Geospatial Information Authority of Japan)
   getelevation API. See https://maps.gsi.go.jp/development/elevation_s.html
 - Weather forecast: Open-Meteo API, distributed under CC-BY-4.0.

@@ -9,7 +9,8 @@
       "kitayama-west",
       "nishiyama"
     ],
-    "totalDistanceKm": 84
+    "totalDistanceKm": 89.98,
+    "totalDistanceLabel": "約90km（公称84km、実走 GPS ベースで再集計後の合計）"
   },
   "extensions": {
     "members": [
@@ -59,11 +60,11 @@
       "dataPath": "./kitayama-west.json",
       "implemented": true,
       "summary": {
-        "totalDistanceKm": 17.61,
-        "totalAscentM": 723,
-        "totalDescentM": 826,
-        "standardTimeHr": 7.77,
-        "courseConstant": 27
+        "totalDistanceKm": 21.03,
+        "totalAscentM": 1167,
+        "totalDescentM": 1270,
+        "standardTimeHr": 9.58,
+        "courseConstant": 36
       }
     },
     {
@@ -89,13 +90,13 @@
       "subtitle": "京北エリア独立周回",
       "loopMember": false,
       "dataPath": "./keihoku.json",
-      "implemented": false,
+      "implemented": true,
       "summary": {
-        "totalDistanceKm": null,
-        "totalAscentM": null,
-        "totalDescentM": null,
-        "standardTimeHr": null,
-        "courseConstant": null
+        "totalDistanceKm": 18.28,
+        "totalAscentM": 833,
+        "totalDescentM": 906,
+        "standardTimeHr": 8.15,
+        "courseConstant": 29
       }
     }
   ]

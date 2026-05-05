@@ -33,6 +33,11 @@ jobs:
             data/courses/higashiyama.json \
             data/courses/kitayama-east.json \
             data/courses/kitayama-west.json \
+            data/courses/keihoku.json \
+            data/courses/raw/CREDITS.md \
+            data/courses/raw/ibuki-keihoku.gpx \
+            data/courses/raw/ibuki-fullloop.gpx \
+            tools/build_courses_ibuki.js \
             js/progressStore.js \
             js/weather.js \
             js/simulator.js \
@@ -163,6 +168,14 @@ jobs:
             'http://localhost:8080/index.html#course=higashiyama')
           for needle in 'コースサマリー' '東山コース' '京阪伏見桃山駅' '075-751-4141'; do
             echo "$OUT" | grep -q "$needle" && echo "OK higashiyama has: $needle" || { echo "FAIL higashiyama missing: $needle"; exit 1; }
+          done
+
+          # Course view (京北 Phase 8 - ibuki CC0 GPX-derived, verifies new course is wired up)
+          OUT=$(google-chrome --headless=new --disable-gpu --no-sandbox \
+            --virtual-time-budget=8000 --dump-dom \
+            'http://localhost:8080/index.html#course=keihoku')
+          for needle in 'コースサマリー' '京北コース' '京北コース 起点' '京都市立京北病院'; do
+            echo "$OUT" | grep -q "$needle" && echo "OK keihoku has: $needle" || { echo "FAIL keihoku missing: $needle"; exit 1; }
           done
 
           kill $SP 2>/dev/null || true

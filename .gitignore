@@ -1,5 +1,9 @@
 # OSM raw fetch artifacts (regenerable by tools/fetch_kyoto_trail.js)
-data/courses/raw/
+# Whitelist ibuki CC0 GPX sources and CREDITS doc (Phase 8) — they must be
+# committed because the build is reproducible only with these inputs.
+data/courses/raw/*
+!data/courses/raw/*.gpx
+!data/courses/raw/CREDITS.md
 
 # Editor / OS noise
 .DS_Store
