@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>京都一周トレイル</title>
+<link rel="manifest" href="./manifest.webmanifest" />
+<meta name="theme-color" content="#2E7D32" />
+<link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+<!-- iOS Safari does not honor SVG for apple-touch-icon; provide a PNG fallback. -->
+<link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
@@ -1820,6 +1825,17 @@ async function refreshWeatherCard(el) {
 window.addEventListener('pagehide', function () {
   if (window.ProgressStore) ProgressStore.flush();
 });
+
+// ===== Phase 5: Service Worker registration =====
+// Registers a SW for offline app shell + GSI tile runtime cache. Fails silently
+// in unsupported / file:// contexts.
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('./service-worker.js').catch(function (err) {
+      console.info('SW registration failed (non-fatal):', err && err.message);
+    });
+  });
+}
 
 initApp();
 </script>

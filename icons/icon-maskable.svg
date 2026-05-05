@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="京都一周トレイル">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFE0B2"/>
+      <stop offset="1" stop-color="#FFB74D"/>
+    </linearGradient>
+    <linearGradient id="mountain1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#388E3C"/>
+      <stop offset="1" stop-color="#1B5E20"/>
+    </linearGradient>
+  </defs>
+  <!-- Maskable safe-zone: keep significant content within central 80% (51px padding on a 512 canvas) -->
+  <rect width="512" height="512" fill="url(#sky)"/>
+  <circle cx="340" cy="170" r="36" fill="#FFEB3B" opacity="0.9"/>
+  <path d="M 50 360 L 130 260 L 200 330 L 280 230 L 360 320 L 462 270 L 462 462 L 50 462 Z" fill="url(#mountain1)"/>
+  <!-- compass rose centered (within safe zone) -->
+  <g transform="translate(256 236)">
+    <circle r="80" fill="rgba(255,255,255,0.9)" stroke="#1B5E20" stroke-width="8"/>
+    <polygon points="0,-58 18,16 0,0 -18,16" fill="#D32F2F"/>
+    <polygon points="0,58 18,-16 0,0 -18,-16" fill="#1B5E20"/>
+  </g>
+  <!-- trail dashed line at bottom -->
+  <path d="M 70 410 Q 180 380 256 400 T 442 410"
+        stroke="#D32F2F" stroke-width="9" stroke-dasharray="16,12" fill="none" stroke-linecap="round"/>
+</svg>
