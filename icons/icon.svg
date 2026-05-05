@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="京都一周トレイル">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFE0B2"/>
+      <stop offset="1" stop-color="#FFB74D"/>
+    </linearGradient>
+    <linearGradient id="mountain1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#388E3C"/>
+      <stop offset="1" stop-color="#1B5E20"/>
+    </linearGradient>
+    <linearGradient id="mountain2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#66BB6A"/>
+      <stop offset="1" stop-color="#2E7D32"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="72" fill="url(#sky)"/>
+  <circle cx="380" cy="140" r="42" fill="#FFEB3B" opacity="0.9"/>
+  <!-- back range -->
+  <path d="M 0 360 L 90 230 L 170 310 L 250 200 L 330 290 L 420 220 L 512 300 L 512 512 L 0 512 Z" fill="url(#mountain1)"/>
+  <!-- snow caps -->
+  <path d="M 230 220 L 250 200 L 270 220 Z" fill="#FAFAFA" opacity="0.8"/>
+  <!-- front range -->
+  <path d="M 0 420 L 70 340 L 140 400 L 210 330 L 290 410 L 360 350 L 440 410 L 512 360 L 512 512 L 0 512 Z" fill="url(#mountain2)"/>
+  <!-- trail line (red dashed across the front range) -->
+  <path d="M 30 460 Q 100 410 160 440 T 280 430 T 410 430 T 490 440"
+        stroke="#D32F2F" stroke-width="6" stroke-dasharray="14,8" fill="none" stroke-linecap="round"/>
+  <!-- compass / pin -->
+  <circle cx="256" cy="436" r="14" fill="#1E88E5" stroke="#fff" stroke-width="4"/>
+  <!-- Title 京 character (centered top) -->
+  <text x="256" y="118" font-family="'Hiragino Sans','Yu Gothic',sans-serif" font-size="120" font-weight="900"
+        fill="#1B5E20" text-anchor="middle" stroke="#fff" stroke-width="6" paint-order="stroke">京</text>
+</svg>

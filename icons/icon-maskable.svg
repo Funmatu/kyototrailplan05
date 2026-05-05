@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="京都一周トレイル">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFE0B2"/>
+      <stop offset="1" stop-color="#FFB74D"/>
+    </linearGradient>
+    <linearGradient id="mountain1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#388E3C"/>
+      <stop offset="1" stop-color="#1B5E20"/>
+    </linearGradient>
+  </defs>
+  <!-- Maskable safe-zone: keep significant content within central 80% (40px padding on a 512 canvas) -->
+  <rect width="512" height="512" fill="url(#sky)"/>
+  <circle cx="340" cy="180" r="36" fill="#FFEB3B" opacity="0.9"/>
+  <path d="M 50 380 L 130 280 L 200 350 L 280 250 L 360 340 L 462 290 L 462 462 L 50 462 Z" fill="url(#mountain1)"/>
+  <text x="256" y="200" font-family="'Hiragino Sans','Yu Gothic',sans-serif" font-size="180" font-weight="900"
+        fill="#1B5E20" text-anchor="middle" stroke="#fff" stroke-width="10" paint-order="stroke">京</text>
+</svg>

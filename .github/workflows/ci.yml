@@ -18,7 +18,7 @@ jobs:
         run: |
           set -e
           shopt -s globstar nullglob
-          for f in $(find . -name '*.json' -not -path './.git/*' -not -path './node_modules/*'); do
+          for f in $(find . \( -name '*.json' -o -name '*.webmanifest' \) -not -path './.git/*' -not -path './node_modules/*'); do
             python3 -m json.tool "$f" > /dev/null
             echo "OK json: $f"
           done
@@ -30,10 +30,20 @@ jobs:
             index.html \
             data/courses/index.json \
             data/courses/nishiyama.json \
+            data/courses/higashiyama.json \
+            data/courses/kitayama-east.json \
+            data/courses/kitayama-west.json \
             js/progressStore.js \
-            route_data.json
+            js/weather.js \
+            js/simulator.js \
+            route_data.json \
+            manifest.webmanifest \
+            service-worker.js \
+            .nojekyll \
+            icons/icon.svg \
+            icons/icon-maskable.svg
           do
-            test -f "$f" && echo "OK exists: $f"
+            test -e "$f" && echo "OK exists: $f"
           done
 
       - name: JS syntax check (inline + js/*.js)
@@ -70,6 +80,17 @@ jobs:
                 console.error('FAIL js/' + f + ': ' + e.message);
                 process.exit(1);
               }
+            }
+          }
+          // Parse the service worker if present.
+          if (fs.existsSync('service-worker.js')) {
+            const code = fs.readFileSync('service-worker.js', 'utf8');
+            try {
+              new Function(code);
+              console.log('OK service-worker.js (' + code.length + ' bytes)');
+            } catch (e) {
+              console.error('FAIL service-worker.js: ' + e.message);
+              process.exit(1);
             }
           }
           NODE

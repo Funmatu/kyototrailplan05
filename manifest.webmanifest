@@ -1,0 +1,27 @@
+{
+  "name": "京都一周トレイル",
+  "short_name": "京トレイル",
+  "description": "京都一周トレイル全5コース対応のガイドマップ・進捗管理アプリ。本線84kmと京北コースの実コース・実標高データに対応、日跨ぎの完歩判定、経路追従補間、Open-Meteo 天気予報を内蔵。",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#2E7D32",
+  "background_color": "#f7f7f5",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["sports", "navigation", "travel"]
+}
