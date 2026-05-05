@@ -21,6 +21,9 @@ const APP_SHELL = [
   './manifest.webmanifest',
   './icons/icon.svg',
   './icons/icon-maskable.svg',
+  './icons/apple-touch-icon.png',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
   './js/progressStore.js',
   './js/weather.js',
   './js/simulator.js',
@@ -45,9 +48,12 @@ self.addEventListener('install', function (event) {
       // App shell (same-origin) — failure aborts install.
       const shellPromise = cache.addAll(APP_SHELL);
       // CDN deps (cross-origin) — best-effort. Don't fail install if a CDN
-      // hiccups; the runtime fetch will retry.
+      // hiccups; the runtime fetch will retry. unpkg / jsdelivr both serve CORS
+      // headers, so a normal cache.add() works and produces a real (non-opaque)
+      // response that can later be served from cache. (`mode: 'no-cors'`
+      // produces opaque responses which cache.add rejects.)
       const cdnPromise = Promise.all(CDN_DEPS.map(function (u) {
-        return cache.add(new Request(u, { mode: 'no-cors' })).catch(function () {});
+        return cache.add(u).catch(function () {});
       }));
       return Promise.all([shellPromise, cdnPromise]);
     }).then(function () { return self.skipWaiting(); })
@@ -81,8 +87,14 @@ async function staleWhileRevalidate(req, cacheName) {
     }
     return res;
   }).catch(function () { return null; });
-  // Return cached immediately when available; otherwise wait on the network.
-  return cached || fetchPromise || new Response('offline', { status: 503 });
+  // The previous `cached || fetchPromise || ...` was a bug: fetchPromise is a
+  // Promise object (always truthy), so `|| new Response(...)` was unreachable
+  // *and* if both cache and network failed, the function returned the rejected
+  // promise resolving to null, which crashes event.respondWith. Await the
+  // network result on cache miss and supply a safe fallback.
+  if (cached) return cached;
+  const networkRes = await fetchPromise;
+  return networkRes || new Response('offline', { status: 503 });
 }
 
 async function networkFirst(req, cacheName) {

@@ -14,19 +14,24 @@
     </linearGradient>
   </defs>
   <rect width="512" height="512" rx="72" fill="url(#sky)"/>
+  <!-- sun -->
   <circle cx="380" cy="140" r="42" fill="#FFEB3B" opacity="0.9"/>
-  <!-- back range -->
-  <path d="M 0 360 L 90 230 L 170 310 L 250 200 L 330 290 L 420 220 L 512 300 L 512 512 L 0 512 Z" fill="url(#mountain1)"/>
-  <!-- snow caps -->
-  <path d="M 230 220 L 250 200 L 270 220 Z" fill="#FAFAFA" opacity="0.8"/>
+  <!-- back range with snow caps -->
+  <path d="M 0 320 L 90 200 L 170 280 L 250 170 L 330 260 L 420 190 L 512 270 L 512 512 L 0 512 Z" fill="url(#mountain1)"/>
+  <path d="M 230 190 L 250 170 L 270 190 L 250 200 Z" fill="#FAFAFA" opacity="0.85"/>
+  <path d="M 405 210 L 420 190 L 435 210 L 420 220 Z" fill="#FAFAFA" opacity="0.85"/>
   <!-- front range -->
-  <path d="M 0 420 L 70 340 L 140 400 L 210 330 L 290 410 L 360 350 L 440 410 L 512 360 L 512 512 L 0 512 Z" fill="url(#mountain2)"/>
-  <!-- trail line (red dashed across the front range) -->
+  <path d="M 0 400 L 70 320 L 140 380 L 210 310 L 290 390 L 360 330 L 440 390 L 512 340 L 512 512 L 0 512 Z" fill="url(#mountain2)"/>
+  <!-- trail (red dashed loop across the front range) -->
   <path d="M 30 460 Q 100 410 160 440 T 280 430 T 410 430 T 490 440"
-        stroke="#D32F2F" stroke-width="6" stroke-dasharray="14,8" fill="none" stroke-linecap="round"/>
-  <!-- compass / pin -->
-  <circle cx="256" cy="436" r="14" fill="#1E88E5" stroke="#fff" stroke-width="4"/>
-  <!-- Title 京 character (centered top) -->
-  <text x="256" y="118" font-family="'Hiragino Sans','Yu Gothic',sans-serif" font-size="120" font-weight="900"
-        fill="#1B5E20" text-anchor="middle" stroke="#fff" stroke-width="6" paint-order="stroke">京</text>
+        stroke="#D32F2F" stroke-width="8" stroke-dasharray="14,10" fill="none" stroke-linecap="round"/>
+  <!-- compass / current-position marker on the trail -->
+  <circle cx="256" cy="436" r="18" fill="#1E88E5" stroke="#fff" stroke-width="5"/>
+  <circle cx="256" cy="436" r="6" fill="#fff"/>
+  <!-- "compass rose" / north triangle in the upper-left, font-free -->
+  <g transform="translate(96 130)">
+    <circle r="68" fill="rgba(255,255,255,0.85)" stroke="#1B5E20" stroke-width="6"/>
+    <polygon points="0,-50 14,12 0,0 -14,12" fill="#D32F2F"/>
+    <polygon points="0,50 14,-12 0,0 -14,-12" fill="#1B5E20"/>
+  </g>
 </svg>
