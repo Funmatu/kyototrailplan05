@@ -117,7 +117,7 @@
       "types": ["VIEW"],
       "name": "嵐山展望地点",
       "distanceKm": 4.1,
-      "elevationM": 185,
+      "elevationM": 105,
       "lat": 35.0042,
       "lng": 135.6600,
       "etaFromPrevLabel": "松尾山から約30分",

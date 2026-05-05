@@ -27,7 +27,8 @@
   const COMPLETION_THRESHOLD = 0.95;          // GPS drift tolerance for "完歩"
   const SAVE_DEBOUNCE_MS = 5000;
   const MIN_INTERVAL_DELTA_KM = 0.005;        // ignore intervals < 5 m
-  const MAX_FORWARD_JUMP_KM = 0.5;            // single update can claim at most 500 m of forward progress
+  const MAX_FORWARD_JUMP_KM = 1.0;            // single update can claim at most 1 km of forward progress
+                                              // (登山では電波状況・省電力スロットリングで一度に数百m相当の移動が報告されることがある)
 
   let _state = null;
   let _saveTimer = null;
@@ -338,8 +339,17 @@
       cur.sessions.sort(function (a, b) { return (a.startedAt || '').localeCompare(b.startedAt || ''); });
     });
     if (imported.user) {
-      if (imported.user.weightKg != null && !_state.user.weightKg) _state.user.weightKg = imported.user.weightKg;
-      if (imported.user.gearKg != null && !_state.user.gearKg) _state.user.gearKg = imported.user.gearKg;
+      // Backup/restore semantics: import wins for user-tunable fields when present.
+      // Without this, defaults from emptyState() (e.g. weightKg=60) make the
+      // truthiness check `!_state.user.weightKg` always false and the import is silently dropped.
+      if (imported.user.weightKg != null) _state.user.weightKg = imported.user.weightKg;
+      if (imported.user.gearKg != null) _state.user.gearKg = imported.user.gearKg;
+      if (imported.user.powerMode === 'eco' || imported.user.powerMode === 'always-on') {
+        _state.user.powerMode = imported.user.powerMode;
+      }
+      if (imported.user.routeToleranceM === 50 || imported.user.routeToleranceM === 100 || imported.user.routeToleranceM === 150) {
+        _state.user.routeToleranceM = imported.user.routeToleranceM;
+      }
     }
     persistNow();
     return { ok: true };

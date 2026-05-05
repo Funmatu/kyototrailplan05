@@ -1365,8 +1365,10 @@ function recordProgressDelta() {
   const prev = AppState.lastRecordedDistanceKm;
   const totalKm = (course.summary && course.summary.totalDistanceKm) || 0;
 
-  // Only commit forward progress; small jitter is ignored by the store
-  if (cur > prev && (cur - prev) <= 0.5) {
+  // Only commit forward progress; small jitter is ignored by the store.
+  // Threshold 1.0 km matches MAX_FORWARD_JUMP_KM in progressStore.js — beyond that we
+  // route through Phase 2.7's gap interpolation rather than blindly claiming progress.
+  if (cur > prev && (cur - prev) <= 1.0) {
     const result = ProgressStore.addInterval(course.id, prev, cur, totalKm);
     if (result && result.added) {
       AppState.lastRecordedDistanceKm = cur;
@@ -1378,9 +1380,10 @@ function recordProgressDelta() {
       // tiny step: still advance the cursor so we don't accumulate jitter
       AppState.lastRecordedDistanceKm = cur;
     }
-  } else if (cur > prev && (cur - prev) > 0.5) {
+  } else if (cur > prev && (cur - prev) > 1.0) {
     // jump too large — likely tab-resume or GPS warp.
-    // Phase 2.7 will offer route-snap interpolation here. For now, advance the cursor without crediting.
+    // Phase 2.7's visibilitychange handler will attempt route-snap interpolation;
+    // here we just advance the cursor without crediting forward progress to the store.
     AppState.lastRecordedDistanceKm = cur;
   }
 }
