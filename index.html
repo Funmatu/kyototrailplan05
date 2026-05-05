@@ -9,6 +9,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
 <script src="./js/progressStore.js"></script>
+<script src="./js/weather.js"></script>
 <style>
 :root {
   --clr-primary: #2E7D32;
@@ -109,6 +110,30 @@ body, html { height: 100%; width: 100vw; overflow: hidden; background: #000; fon
   margin-top: 6px; padding: 6px 10px; background: #FFF8E1; border: 1px solid #F9A825;
   border-radius: 6px; color: #E65100; font-size: 12px; font-weight: 700;
 }
+
+/* Weather card (Open-Meteo) */
+.weather-card {
+  background: linear-gradient(135deg, #E3F2FD 0%, #FFF8E1 100%);
+  border: 1px solid #B3E5FC; border-radius: 10px;
+  padding: 10px 14px; margin-bottom: 12px;
+}
+.weather-card[hidden] { display: none; }
+.weather-card-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.weather-emoji { font-size: 22px; }
+.weather-condition { font-size: 13px; font-weight: 700; color: var(--clr-text); }
+.weather-temp { margin-left: auto; font-size: 13px; font-weight: 700; color: var(--clr-text); }
+.weather-card-row {
+  display: flex; gap: 12px; flex-wrap: wrap; font-size: 11px; color: var(--clr-text);
+  margin-top: 6px; align-items: baseline;
+}
+.weather-card-row b { color: var(--clr-text-sub); font-weight: 600; }
+.weather-source { margin-left: auto; font-size: 9px; color: var(--clr-text-sub); }
+.weather-warn {
+  margin-top: 6px; font-size: 11px; padding: 4px 8px; border-radius: 4px;
+}
+.weather-warn-danger { background: #FFEBEE; color: var(--clr-danger); border: 1px solid #EF9A9A; font-weight: 700; }
+.weather-warn-warning { background: #FFF8E1; color: #E65100; border: 1px solid #FFE082; }
+.weather-warn-info { background: #E3F2FD; color: #1565C0; border: 1px solid #90CAF9; }
 
 /* Data controls (Export / Import / Reset) */
 .data-controls {
@@ -283,6 +308,8 @@ body, html { height: 100%; width: 100vw; overflow: hidden; background: #000; fon
 <div id="landing">
   <div class="landing-title">京都一周トレイル</div>
   <div class="landing-sub">伏見桃山〜比叡山〜大原〜鞍馬〜高雄〜嵐山〜苔寺 / 全長 約84km（4コース連続ループ）+ 京北コース</div>
+
+  <div class="weather-card" id="landing-weather" hidden></div>
 
   <div class="loop-progress-card">
     <h2>本線進捗</h2>
@@ -628,6 +655,9 @@ function enterCourseView(course) {
   // Render existing covered intervals from prior sessions (cross-day resume)
   renderCoveredOnMap(course);
 
+  // Phase 3.5: render today's weather inside the 補足情報 tab.
+  refreshWeatherCard(document.getElementById('course-weather'));
+
   // Geolocation + Wake Lock (Wake Lock only if user opted into "always-on" mode)
   startGeolocation();
   const mode = (window.ProgressStore ? ProgressStore.getUser().powerMode : 'eco') || 'eco';
@@ -857,6 +887,10 @@ function renderInfoTab(course) {
   const weather = course.weatherCriteria || [];
   const s = course.summary || {};
   let html = '';
+
+  // Today's forecast (Phase 3.5) — populated asynchronously via Weather.fetchToday()
+  html += '<div class="sec-title">本日の天気</div>';
+  html += '<div class="weather-card" id="course-weather" hidden></div>';
 
   if ((t.access && t.access.length) || (t.return && t.return.length)) {
     html += '<div class="sec-title">アクセス</div>';
@@ -1685,10 +1719,30 @@ async function initApp() {
   renderLanding(AppState.coursesIndex);
   syncUserWeightInputs();
 
+  // Background-fetch today's weather (Phase 3.5). Failures are silent — UI just stays empty.
+  refreshWeatherCard(document.getElementById('landing-weather'));
+
   // Restore from URL hash (e.g., #course=nishiyama)
   const hashMatch = location.hash.match(/^#course=([\w-]+)$/);
   if (hashMatch) {
     selectCourse(hashMatch[1]);
+  }
+}
+
+// ===== Phase 3.5: Weather card =====
+// Single shared coord (approximate Kyoto city center) so per-course fetches share a cache key.
+const WEATHER_LAT = 35.05;
+const WEATHER_LNG = 135.75;
+
+let _weatherCache = null;
+async function refreshWeatherCard(el) {
+  if (!el || !window.Weather) return;
+  try {
+    if (!_weatherCache) _weatherCache = await Weather.fetchToday(WEATHER_LAT, WEATHER_LNG);
+    Weather.renderCard(el, _weatherCache);
+  } catch (err) {
+    console.info('weather fetch failed (non-fatal):', err && err.message);
+    el.hidden = true;
   }
 }
 
