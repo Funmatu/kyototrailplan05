@@ -3,11 +3,18 @@
   "loop": {
     "name": "京都一周トレイル本線",
     "description": "伏見桃山〜比叡山〜大原〜鞍馬〜高雄〜嵐山〜苔寺を結ぶ4コース連続ループ",
-    "members": ["higashiyama", "kitayama-east", "kitayama-west", "nishiyama"],
+    "members": [
+      "higashiyama",
+      "kitayama-east",
+      "kitayama-west",
+      "nishiyama"
+    ],
     "totalDistanceKm": 84
   },
   "extensions": {
-    "members": ["keihoku"],
+    "members": [
+      "keihoku"
+    ],
     "description": "本線とは別の独立コース。+α達成として独立バッジで表彰"
   },
   "courses": [
@@ -18,13 +25,13 @@
       "subtitle": "伏見稲荷〜比叡山〜大原",
       "loopMember": true,
       "dataPath": "./higashiyama.json",
-      "implemented": false,
+      "implemented": true,
       "summary": {
-        "totalDistanceKm": null,
-        "totalAscentM": null,
-        "totalDescentM": null,
-        "standardTimeHr": null,
-        "courseConstant": null
+        "totalDistanceKm": 35.95,
+        "totalAscentM": 1757,
+        "totalDescentM": 1083,
+        "standardTimeHr": 16.14,
+        "courseConstant": 58.1
       }
     },
     {
@@ -34,13 +41,13 @@
       "subtitle": "大原〜鞍馬〜二ノ瀬",
       "loopMember": true,
       "dataPath": "./kitayama-east.json",
-      "implemented": false,
+      "implemented": true,
       "summary": {
-        "totalDistanceKm": null,
-        "totalAscentM": null,
-        "totalDescentM": null,
-        "standardTimeHr": null,
-        "courseConstant": null
+        "totalDistanceKm": 18,
+        "totalAscentM": 582,
+        "totalDescentM": 1094,
+        "standardTimeHr": 7.78,
+        "courseConstant": 25.9
       }
     },
     {
@@ -50,13 +57,13 @@
       "subtitle": "二ノ瀬〜上賀茂〜高雄",
       "loopMember": true,
       "dataPath": "./kitayama-west.json",
-      "implemented": false,
+      "implemented": true,
       "summary": {
-        "totalDistanceKm": null,
-        "totalAscentM": null,
-        "totalDescentM": null,
-        "standardTimeHr": null,
-        "courseConstant": null
+        "totalDistanceKm": 17.61,
+        "totalAscentM": 723,
+        "totalDescentM": 826,
+        "standardTimeHr": 7.77,
+        "courseConstant": 27
       }
     },
     {

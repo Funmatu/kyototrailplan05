@@ -1,0 +1,18 @@
+# OSM raw fetch artifacts (regenerable by tools/fetch_kyoto_trail.js)
+data/courses/raw/
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/
+
+# Local server logs
+/tmp/
+
+# Node (if introduced in later phases)
+node_modules/
+npm-debug.log
+yarn-error.log
