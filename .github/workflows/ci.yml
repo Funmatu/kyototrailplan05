@@ -1,0 +1,136 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Validate static assets
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate JSON files
+        run: |
+          set -e
+          shopt -s globstar nullglob
+          for f in $(find . -name '*.json' -not -path './.git/*' -not -path './node_modules/*'); do
+            python3 -m json.tool "$f" > /dev/null
+            echo "OK json: $f"
+          done
+
+      - name: Verify expected files exist
+        run: |
+          set -e
+          for f in \
+            index.html \
+            data/courses/index.json \
+            data/courses/nishiyama.json \
+            js/progressStore.js \
+            route_data.json
+          do
+            test -f "$f" && echo "OK exists: $f"
+          done
+
+      - name: JS syntax check (inline + js/*.js)
+        run: |
+          node <<'NODE'
+          'use strict';
+          const fs = require('fs');
+          const path = require('path');
+
+          // Parse every inline (no-src) <script> block in index.html.
+          const html = fs.readFileSync('index.html', 'utf8');
+          const re = /<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g;
+          let m, idx = 0;
+          while ((m = re.exec(html)) !== null) {
+            try {
+              new Function('(async function () {' + m[1] + '})');
+              console.log('OK inline-script #' + idx + ' (' + m[1].length + ' bytes)');
+            } catch (e) {
+              console.error('FAIL inline-script #' + idx + ': ' + e.message);
+              process.exit(1);
+            }
+            idx++;
+          }
+          if (idx === 0) { console.error('FAIL no inline script found in index.html'); process.exit(1); }
+
+          // Parse every js/*.js file.
+          if (fs.existsSync('js')) {
+            for (const f of fs.readdirSync('js').filter(x => x.endsWith('.js'))) {
+              const code = fs.readFileSync(path.join('js', f), 'utf8');
+              try {
+                new Function(code);
+                console.log('OK js/' + f + ' (' + code.length + ' bytes)');
+              } catch (e) {
+                console.error('FAIL js/' + f + ': ' + e.message);
+                process.exit(1);
+              }
+            }
+          }
+          NODE
+
+      - name: Course data integrity
+        run: |
+          python3 <<'PY'
+          import json, sys, pathlib
+          repo = pathlib.Path('.')
+          idx = json.loads((repo / 'data/courses/index.json').read_text(encoding='utf-8'))
+          assert idx['schemaVersion'] == 1, 'index.json schemaVersion must be 1'
+          ids = {c['id'] for c in idx['courses']}
+          assert ids == {'higashiyama', 'kitayama-east', 'kitayama-west', 'nishiyama', 'keihoku'}, ids
+          # Every implemented course must have a parseable JSON file with required fields.
+          for c in idx['courses']:
+              if not c.get('implemented'):
+                  continue
+              data_path = repo / 'data/courses' / c['dataPath'].lstrip('./')
+              d = json.loads(data_path.read_text(encoding='utf-8'))
+              assert d['id'] == c['id'], f'id mismatch in {data_path}'
+              assert d['geometry']['type'] == 'LineString'
+              assert len(d['geometry']['coordinates']) >= 2
+              s = d['summary']
+              assert s['totalDistanceKm'] > 0
+              assert s['totalAscentM'] >= 0
+              assert s['totalDescentM'] >= 0
+              assert s['standardTimeHr'] > 0
+              print(f'OK course: {c["id"]} ({len(d["geometry"]["coordinates"])} pts, '
+                    f'{s["totalDistanceKm"]} km, {s["totalAscentM"]} m up)')
+          PY
+
+  smoke:
+    name: Headless smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Serve and load
+        run: |
+          set -e
+          python3 -m http.server 8080 > /tmp/srv.log 2>&1 &
+          SP=$!
+          sleep 1
+          # Chrome is pre-installed on ubuntu-latest runner images.
+          which google-chrome >/dev/null 2>&1 || sudo apt-get update && sudo apt-get install -y google-chrome-stable
+
+          # Landing
+          OUT=$(google-chrome --headless=new --disable-gpu --no-sandbox \
+            --virtual-time-budget=4000 --dump-dom \
+            http://localhost:8080/index.html)
+          for needle in '本線進捗' '西山コース' 'btn-export' 'user-power-mode' 'user-tolerance'; do
+            echo "$OUT" | grep -q "$needle" && echo "OK landing has: $needle" || { echo "FAIL landing missing: $needle"; exit 1; }
+          done
+
+          # Course view
+          OUT=$(google-chrome --headless=new --disable-gpu --no-sandbox \
+            --virtual-time-budget=6000 --dump-dom \
+            'http://localhost:8080/index.html#course=nishiyama')
+          for needle in 'コースサマリー' '行動計画タイムテーブル' '苔寺・鈴虫寺バス停' '075-751-4141' 'C = 1.8'; do
+            echo "$OUT" | grep -q "$needle" && echo "OK course has: $needle" || { echo "FAIL course missing: $needle"; exit 1; }
+          done
+
+          kill $SP 2>/dev/null || true

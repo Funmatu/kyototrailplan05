@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "loop": {
+    "name": "京都一周トレイル本線",
+    "description": "伏見桃山〜比叡山〜大原〜鞍馬〜高雄〜嵐山〜苔寺を結ぶ4コース連続ループ",
+    "members": ["higashiyama", "kitayama-east", "kitayama-west", "nishiyama"],
+    "totalDistanceKm": 84
+  },
+  "extensions": {
+    "members": ["keihoku"],
+    "description": "本線とは別の独立コース。+α達成として独立バッジで表彰"
+  },
+  "courses": [
+    {
+      "id": "higashiyama",
+      "order": 1,
+      "name": "東山コース",
+      "subtitle": "伏見稲荷〜比叡山〜大原",
+      "loopMember": true,
+      "dataPath": "./higashiyama.json",
+      "implemented": false,
+      "summary": {
+        "totalDistanceKm": null,
+        "totalAscentM": null,
+        "totalDescentM": null,
+        "standardTimeHr": null,
+        "courseConstant": null
+      }
+    },
+    {
+      "id": "kitayama-east",
+      "order": 2,
+      "name": "北山東部コース",
+      "subtitle": "大原〜鞍馬〜二ノ瀬",
+      "loopMember": true,
+      "dataPath": "./kitayama-east.json",
+      "implemented": false,
+      "summary": {
+        "totalDistanceKm": null,
+        "totalAscentM": null,
+        "totalDescentM": null,
+        "standardTimeHr": null,
+        "courseConstant": null
+      }
+    },
+    {
+      "id": "kitayama-west",
+      "order": 3,
+      "name": "北山西部コース",
+      "subtitle": "二ノ瀬〜上賀茂〜高雄",
+      "loopMember": true,
+      "dataPath": "./kitayama-west.json",
+      "implemented": false,
+      "summary": {
+        "totalDistanceKm": null,
+        "totalAscentM": null,
+        "totalDescentM": null,
+        "standardTimeHr": null,
+        "courseConstant": null
+      }
+    },
+    {
+      "id": "nishiyama",
+      "order": 4,
+      "name": "西山コース",
+      "subtitle": "高雄〜嵐山〜苔寺",
+      "loopMember": true,
+      "dataPath": "./nishiyama.json",
+      "implemented": true,
+      "summary": {
+        "totalDistanceKm": 15.0,
+        "totalAscentM": 827,
+        "totalDescentM": 832,
+        "standardTimeHr": 6.8,
+        "courseConstant": 25.5
+      }
+    },
+    {
+      "id": "keihoku",
+      "order": 5,
+      "name": "京北コース",
+      "subtitle": "京北エリア独立周回",
+      "loopMember": false,
+      "dataPath": "./keihoku.json",
+      "implemented": false,
+      "summary": {
+        "totalDistanceKm": null,
+        "totalAscentM": null,
+        "totalDescentM": null,
+        "standardTimeHr": null,
+        "courseConstant": null
+      }
+    }
+  ]
+}
