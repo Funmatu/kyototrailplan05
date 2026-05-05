@@ -1,0 +1,64 @@
+name: E2E
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    # Weekly Monday 03:00 UTC = 12:00 JST. Smokes the deployed prod URL.
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Override BASE_URL (e.g. https://funmatu.github.io/kyototrailplan05/)'
+        required: false
+        default: ''
+
+jobs:
+  e2e:
+    name: Playwright walk-route
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Node deps
+        run: npm install --no-audit --no-fund
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Decide BASE_URL
+        id: base
+        run: |
+          if [ -n "${{ inputs.base_url }}" ]; then
+            echo "url=${{ inputs.base_url }}" >> "$GITHUB_OUTPUT"
+            echo "Using manual override: ${{ inputs.base_url }}"
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            # Weekly run: smoke the deployed prod URL
+            echo "url=https://funmatu.github.io/kyototrailplan05/" >> "$GITHUB_OUTPUT"
+            echo "Using weekly prod URL"
+          else
+            echo "url=" >> "$GITHUB_OUTPUT"
+            echo "Using local http.server (set up by playwright.config.js)"
+          fi
+
+      - name: Run Playwright tests
+        env:
+          BASE_URL: ${{ steps.base.outputs.url }}
+          CI: 'true'
+        run: npm run test:e2e
+
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
