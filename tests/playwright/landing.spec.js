@@ -4,7 +4,7 @@ const { test, expect } = require('@playwright/test');
 
 test.describe('Landing page', () => {
   test('renders all 5 courses with implemented status', async ({ page }) => {
-    await page.goto('/index.html');
+    await page.goto('./');
 
     // Title + subtitle
     await expect(page.locator('.landing-title')).toHaveText('京都一周トレイル');
@@ -28,7 +28,7 @@ test.describe('Landing page', () => {
   });
 
   test('clicking 西山 enters course view with all tabs', async ({ page }) => {
-    await page.goto('/index.html');
+    await page.goto('./');
     await page.locator('.course-card.implemented').filter({ hasText: '西山コース' }).click();
 
     await expect(page.locator('#hdr-course-name')).toHaveText('西山コース');
@@ -50,7 +50,7 @@ test.describe('Landing page', () => {
     page.on('console', msg => {
       if (msg.type() === 'error') errors.push(`console.error: ${msg.text()}`);
     });
-    await page.goto('/index.html#course=keihoku');
+    await page.goto('#course=keihoku');
     await expect(page.locator('#hdr-course-name')).toHaveText('京北コース');
     await expect(page.locator('#course-view'), errors.join('\n')).not.toHaveClass(/hidden/);
     // Elevation chart container must render
@@ -62,7 +62,7 @@ test.describe('Landing page', () => {
   });
 
   test('back-to-landing returns to course list', async ({ page }) => {
-    await page.goto('/index.html#course=nishiyama');
+    await page.goto('#course=nishiyama');
     await expect(page.locator('#hdr-course-name')).toHaveText('西山コース');
     await page.locator('#back-to-landing').click();
     await expect(page.locator('#landing')).not.toHaveClass(/hidden/);
