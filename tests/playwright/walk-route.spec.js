@@ -36,7 +36,7 @@ test.describe('Real Geolocation API', () => {
   // app state. Phase 7 (real-device shadow) covers true GPS hardware behavior.
   test('Nishiyama: course view loads with permission + initial position granted', async ({ page, context }) => {
     await context.setGeolocation({ ...NISHI_WAYPOINTS[0], accuracy: 5 });
-    await page.goto('/index.html#course=nishiyama');
+    await page.goto('index.html#course=nishiyama');
     await expect(page.locator('#hdr-course-name')).toHaveText('西山コース');
     // Map renders (Leaflet attribution shows up once tiles load)
     await expect(page.locator('#map')).toBeVisible();
@@ -48,7 +48,7 @@ test.describe('Real Geolocation API', () => {
 test.describe('In-app simulator (?sim=...)', () => {
   test('Nishiyama: simulator banner + course auto-loaded + dashboard advances', async ({ page }) => {
     // Use a high speed so the test completes quickly (~2 km in ~25 sec at speed=200)
-    await page.goto('/index.html?sim=nishiyama&speed=200');
+    await page.goto('index.html?sim=nishiyama&speed=200');
 
     // Sim banner visible
     await expect(page.locator('#sim-banner')).toBeVisible();
@@ -69,7 +69,7 @@ test.describe('In-app simulator (?sim=...)', () => {
   });
 
   test('Higashiyama: simulator drives data-driven (OSM) course path', async ({ page }) => {
-    await page.goto('/index.html?sim=higashiyama&speed=200');
+    await page.goto('index.html?sim=higashiyama&speed=200');
     await expect(page.locator('#hdr-course-name')).toHaveText('東山コース');
     await expect(page.locator('#sim-banner')).toContainText('シミュレータ実行中');
     await expect.poll(
@@ -82,7 +82,7 @@ test.describe('In-app simulator (?sim=...)', () => {
 test.describe('Cross-day persistence', () => {
   test('progress survives a reload via localStorage', async ({ page }) => {
     // Seed: walk a bit via simulator, then force-flush and reload as a fresh visit.
-    await page.goto('/index.html?sim=nishiyama&speed=200');
+    await page.goto('index.html?sim=nishiyama&speed=200');
     await expect.poll(
       async () => parseFloat(await page.locator('#val-dist').textContent() || '0'),
       { timeout: 30_000, intervals: [1_000] }
